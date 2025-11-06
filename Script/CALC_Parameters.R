@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------- #
-# SCRIPT FOR CALCULATING BASE PARAMETERS
+# FUNCTIONS FOR CALCULATING PBK MODEL PARAMETERS
 # By: Chrysanthi Pachoulide
-# Date: 14-04-2025
+# Date: 05-11-2025
 # --------------------------------------------------------------------------- #
 
 # !! max BW in Physio_params is 76 for Female
@@ -33,43 +33,7 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
     CL_menses <- 0 # L/day
   }
   
-  # # Serum albumin (g_HSA /L_serum, or mg/ml); Weaving et al 2016; DOI: 10.1177/0004563215593561
-  # if (expAGE <= 5) {
-  #   SAlb <- 43  
-  # } else if (expAGE <= 15 && sex == "M") {
-  #   SAlb <- 44
-  # } else if (expAGE <= 25 && sex == "M") {
-  #   SAlb <- 46
-  # } else if (expAGE <= 35 && sex == "M") {  
-  #   SAlb <- 45
-  # } else if (expAGE <= 50 && sex == "M") {
-  #   SAlb <- 44
-  # } else if (expAGE <= 60 && sex == "M") {
-  #   SAlb <- 43
-  # } else if (expAGE <= 75 && sex == "M") {
-  #   SAlb <- 42
-  # } else if (expAGE <= 80 && sex == "M") {
-  #   SAlb <- 41
-  # } else if (expAGE <= 90 && sex == "M") {
-  #   SAlb <- 40
-  # } else if (expAGE <= 10 && sex == "F") {
-  #   SAlb <- 45
-  # } else if (expAGE <= 20 && sex == "F") {
-  #   SAlb <- 44
-  # } else if (expAGE <= 40 && sex == "F") {
-  #   SAlb <- 43
-  # } else if (expAGE <= 75 && sex == "F") {
-  #   SAlb <- 42
-  # } else if (expAGE <= 85 && sex == "F") {
-  #   SAlb <- 41
-  # } else if (expAGE <= 90 && sex == "F") {
-  #   SAlb <- 40
-  # } else if (expAGE <= 94) { 
-  #   SAlb <- 39
-  # } else { 
-  #   SAlb <- 38
-  # } 
-  # 
+ 
   ## Input
   Physio_params <- Physio.c
   
@@ -202,19 +166,33 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   
   ## Chemical Specific ####
   
+  PhysChemTK_params <- PhysChemTK.c %>% filter(PFAS_Abr == PFAS) 
+
   # Distribution coefficients to different matrices 
-  logML <- 3.52  # 3.52 ± 0.08 from Ebert A., Allendorf F. et al (2020), https://dx.doi.org/10.1021/acs.est.0c00175  (Liposomes composed of POPC (1-palmitoyl-2-oleoyl-glycero-3-phosphocholine))
-  logSP <- 1.61  # 1.61 ± 0.15 from Allendorf, F., Goss, K.-U. and Ulrich, N. (2021), https://doi.org/10.1002/etc.4954  (Structural proteins from chicken breast fillet (actin & myosin 60-95%), Recovery 95%)
-  logALB <- 4.48 # Fischer et al 2024 logALB <- 4.48±0.04 https://pubs.acs.org/doi/pdf/10.1021/acs.est.3c07415?ref=article_openPDF; 4.33 # 4.33 ± 0.05 from Allendorf, F., Goss, K.-U. and Ulrich, N. (2021), https://doi.org/10.1002/etc.4954 (BSA (fatty acid free) Molar ratio compound to BSA < 0.1 72-96h, Recovery 94%))
-  logSL <- -1.37 # -1.37 ± 0.01 from Allendorf, F., Goss, K.-U. and Ulrich, N. (2021), https://doi.org/10.1002/etc.4954 (Olive oil with a high fraction of unsaturated fatty acids, Recovery 95%)
+  logML <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "log_Dml/water", 
+           Reference == "Ebert et al. 2020") %>% pull(Value) %>% as.numeric()
+  logSP <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "log_Dsp/water", 
+           Reference == "Allendorf et al. 2019") %>% pull(Value) %>% as.numeric()
+  logALB <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "log_Dalb/water", 
+           Reference == "Fischer et al. 2024") %>% pull(Value) %>% as.numeric()
+  logSL <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "log_Dsl/water", 
+           Reference == "Allendorf et al. 2019") %>% pull(Value) %>% as.numeric()
   logFABP <- 4.3 # calculated by Allendorf, F., Goss, K.-U. and Ulrich, N. (2021), https://doi.org/10.1002/etc.4954
+  # !! need to change this !!
+  logGLOB <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "log_Dglob/water", Reference == "Fischer et al. 2024") %>% 
+    pull(Value) %>% as.numeric()
   
   k_ML <- 10^logML       # neutral phospholipids:water partition coefficient
   k_SP <- 10^logSP       # structural protein:water partition coefficient
   k_ALB <- 10^logALB     # albumin:water partition coefficient
   k_SL <- 10^logSL       # structural lipids:water partition coefficient
   k_FABP <- 10^logFABP   # fatty acid-binding protein:water partition coefficient
-  
+  k_GLOB <- 10^logGLOB   # globulin:water partition coefficient
   
   ### Fraction unbound in plasma -------------------------
   # Equation for calculating fraction unbound in plasma was taken from https://doi.org/10.1021/acs.est.3c07415
@@ -223,10 +201,8 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   D_ALB <- k_ALB*DAlb # L_w/L_hsa; distribution coefficient
   FV_Alb <- SAlb*10^-3 # kg/kg of albumin in serum
 
-  
   DGlob <- 1.20 #kg/L density of globulin
-  k_GLOB <- 10^2.16 # Lw/Kg_globulin; globulin/water partition coefficient 
-  D_Glob <- 10^2.16*DGlob # L_w/L_hsa; distribution coefficient
+  D_Glob <- k_GLOB*DGlob # L_w/L_hsa; distribution coefficient
   FV_Glob <- 0.031 # kg/kg of globulin in serum
   
   FV_W <- 1 - FV_Alb - FV_Glob # serum mass balance
@@ -291,10 +267,19 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   ### Uptake from the gastro-intestinal duct -------------------------
   
   # Input data, in vitro clearance
-  Papp_SI = 7.31 * 1e-6                       # cm/s, 7.31 ± 0.43, Janssen et al. 2024 http://dx.doi.org/10.1007/s00204-024-03851-x, epiIntestinal
+  Papp_SI <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Papp", 
+           Reference == "Janssen et al. 2024",
+           Comment == "EpiIntestinal") %>% 
+    pull(Value) %>% as.numeric()   # cm/s
   
-  Vmax_OATP2B1c <- 0.001493                    # umol/min/mg protein, 1493 ± 543 pmol/min/mg protein; Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 (pmol -> umol)
-  Km_OATP2B1c <- 148.68                        # umol/L, 148.68 ± 132.89 uM, Lin et al. 2023
+  Vmax_OATP2B1c <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Vmax_OATP2B1") %>% 
+    pull(Value) %>% as.numeric()*1e-3 # umol/min/mg protein
+  
+  Km_OATP2B1c <- PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Km_OATP2B1") %>% 
+    pull(Value) %>% as.numeric() # umol/L
   
   # IVIVE scaling factors
   REF_OATP2B1 = 1.6/0.812                     # relative expression factor OATP2B1, calculated from: OATP2B1_vivo/OATP2B1_vitro (pmol/mg membrane protein / pmol/mg membrane protein); Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables7 and s6, ref23
@@ -305,11 +290,19 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   ### Uptake to the liver -------------------------
   
   # Input data, in vitro clearance
-  Vmax_OATP1B1c = 0.002305                     # umol/min/mg protein, 2305 ± 295 pmol/min/mg protein, Lin et al. 2023 (pmol -> umol)
-  Km_OATP1B1c = 52.65                          # umol/L, 52.65 ± 23.28 uM, Lin et al. 2023
+  Vmax_OATP1B1c = PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Vmax_OATP1B1") %>% 
+    pull(Value) %>% as.numeric()*1e-3          # umol/min/mg protein
+  Km_OATP1B1c = PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Km_OATP1B1") %>% 
+    pull(Value) %>% as.numeric()               # umol/L
   
-  Vmax_OATP1B3c = 0.002694                     # umol/min/mg protein, 2694 ± 470 pmol/min/mg protein, Lin et al. 2023 (pmol -> umol)
-  Km_OATP1B3c = 91.61                           # umol/L, 91.61 ± 47.70 uM, Lin et al. 2023
+  Vmax_OATP1B3c = PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Vmax_OATP1B3") %>% 
+    pull(Value) %>% as.numeric()*1e-3          # umol/min/mg protein
+  Km_OATP1B3c = PhysChemTK_params %>% 
+    filter(Parameter_Abr == "Km_OATP1B3") %>% 
+    pull(Value) %>% as.numeric()               # umol/L
   
   # IVIVE scaling factors
   REF_OATP1B1 = 2/0.120                             # relative expression factor OATP1B1, calculated from: OATP1B1_vivo / OATP1B1_vitro  (pmol/mg membrane protein/pmol/mg membrane protein); Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables7 and s6, ref23

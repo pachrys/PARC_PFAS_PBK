@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# SCRIPT FOR CALCULATING MODEL RESULTS
+# FUNCTIONS TO  CALCULATING MODEL RESULTS
 # By: Chrysanthi Pachoulide
 # Date: 14-04-2025
 # --------------------------------------------------------------------------- #
@@ -11,10 +11,6 @@ RUNandOUT <- function(exposure_type,
                       expAGE = NULL, expBW = NULL, sex = "M", 
                       Tstart, Tstop, Dt) {
   
-  
-  # Load R files 
-  source(here("Script", "CALC_Parameters.R"), local = TRUE)
-  source(here("Script", "PBK_model.R"), local = TRUE)  
   
   ## Add state ####
   Astate <- switch (exposure_type,
@@ -152,12 +148,7 @@ RUNandOUT_lifestage <- function(exposure_type,
                       Tinput, tinterval, expSTOP, 
                       expAGE = NULL, expBW = NULL, sex = "M", 
                       Tstart, Tstop, Dt) {
-  
-  
-  source(here("Script", "CALC_Parameters.R"), local = TRUE)
-  source(here("Script", "PBK_model.R"), local = TRUE)  
-  
-  
+
   ## Add state ####
   Astate <- switch (exposure_type,
                     "Oral" = c(OD = 0,

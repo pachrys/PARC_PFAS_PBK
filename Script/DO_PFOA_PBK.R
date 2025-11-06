@@ -1,7 +1,7 @@
   # --------------------------------------------------------------------------- #
   # SCRIPT FOR RUNNING THE PBK MODEL & OBTAINING RESULTS
   # By: Chrysanthi Pachoulide
-  # Date: 14-04-2025
+  # Date: 05-11-2025
   # --------------------------------------------------------------------------- #
   
   rm(list=ls()) 
@@ -36,23 +36,24 @@
   OUTPUT <- here("Output") #, format(Sys.Date(), "%Y-%m-%d"), format(Sys.time(), "%H-%M-%S"))
   dir.create(OUTPUT, recursive = TRUE)
   
-  # Input file
+  # Manual input
+  Lifestage = "Yes"   # Choose if physiology should change with age ("Yes" to include physiological changes due to age and "No" to assume the same physiology over time)
+  Population = "No"   # Choose to include population or individual exposure ("Yes" to include population based and "No" to only run the model for one person)
+  Test_study = ""     # Choose study from input file
+  PFAS = "PFOA"       # Choose PFAS to run the model on
+
+  # Load input files
   INPUT_dummy <- read.csv(here("Input", "INPUT_dummy.csv"))
-  
-  # Choose if physiology should change with age ("Yes" to include physiological changes due to age and "No" to assume the same physiology over time)
-  Lifestage = "Yes" 
-  
-  # Choose to include population or individual exposure ("Yes" to include population based and "No" to only run the model for one person)
-  Population = "Yes" 
-  
-  # Choose study from input file, or ID_range
-  Test_study = "CorrelationM" #Arvidsjaur, EFSA, EffectOfLifestageEq, Olsen, dummy, "Ratier"
-  
-  # Load files
   Physio.c <- read_csv(here("Input", "PhysioVariables.csv"))
   Tissue.c <- read_csv(here("Input", "TissueComposition.csv"))
-  source(here("Script", "RUN_and_OUTPUT.R"))
+  PhysChemTK.c <- read_xlsx(here("Input", "PFAS_parameters.xlsx")) 
   
+  # Load R files 
+  source(here("Script", "RUN_and_OUTPUT.R"))
+  source(here("Script", "CALC_Parameters.R"), local = TRUE)
+  source(here("Script", "PBK_model.R"), local = TRUE)  
+  
+
 
   # Load input ----
   
