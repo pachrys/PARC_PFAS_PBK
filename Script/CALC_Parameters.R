@@ -166,26 +166,22 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   
   ## Chemical Specific ####
   
-  PhysChemTK_params <- PhysChemTK.c %>% filter(PFAS_Abr == PFAS) 
+  PhysChemTK_params <- PhysChemTK.c %>% filter(Acronym == PFAS) 
 
   # Distribution coefficients to different matrices 
   logML <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "log_Dml/water", 
-           Reference == "Ebert et al. 2020") %>% pull(Value) %>% as.numeric()
+    filter(Parameter == "logDml/water") %>% pull(Value) %>% as.numeric()
   logSP <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "log_Dsp/water", 
-           Reference == "Allendorf et al. 2019") %>% pull(Value) %>% as.numeric()
+    filter(Parameter == "logDsp/water") %>% pull(Value) %>% as.numeric()
   logALB <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "log_Dalb/water", 
+    filter(Parameter == "logDalb/water", 
            Reference == "Fischer et al. 2024") %>% pull(Value) %>% as.numeric()
   logSL <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "log_Dsl/water", 
-           Reference == "Allendorf et al. 2019") %>% pull(Value) %>% as.numeric()
+    filter(Parameter == "logDsl/water") %>% pull(Value) %>% as.numeric()
   logFABP <- 4.3 # calculated by Allendorf, F., Goss, K.-U. and Ulrich, N. (2021), https://doi.org/10.1002/etc.4954
   # !! need to change this !!
   logGLOB <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "log_Dglob/water", Reference == "Fischer et al. 2024") %>% 
-    pull(Value) %>% as.numeric()
+    filter(Parameter == "logDglob/water") %>% pull(Value) %>% as.numeric()
   
   k_ML <- 10^logML       # neutral phospholipids:water partition coefficient
   k_SP <- 10^logSP       # structural protein:water partition coefficient
@@ -268,17 +264,18 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   
   # Input data, in vitro clearance
   Papp_SI <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Papp", 
-           Reference == "Janssen et al. 2024",
-           Comment == "EpiIntestinal") %>% 
+    filter(Parameter == "Papp", 
+           Parameter_source_system == "EpiIntestinal") %>% 
     pull(Value) %>% as.numeric()   # cm/s
   
   Vmax_OATP2B1c <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Vmax_OATP2B1") %>% 
+    filter(Parameter == "Vmax",
+           Parameter_specific == "OATP2B1") %>% 
     pull(Value) %>% as.numeric()*1e-3 # umol/min/mg protein
   
   Km_OATP2B1c <- PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Km_OATP2B1") %>% 
+    filter(Parameter == "Km",
+           Parameter_specific == "OATP2B1") %>% 
     pull(Value) %>% as.numeric() # umol/L
   
   # IVIVE scaling factors
@@ -291,17 +288,21 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   
   # Input data, in vitro clearance
   Vmax_OATP1B1c = PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Vmax_OATP1B1") %>% 
+    filter(Parameter == "Vmax",
+           Parameter_specific == "OATP1B1") %>% 
     pull(Value) %>% as.numeric()*1e-3          # umol/min/mg protein
   Km_OATP1B1c = PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Km_OATP1B1") %>% 
+    filter(Parameter == "Km",
+           Parameter_specific == "OATP1B1") %>% 
     pull(Value) %>% as.numeric()               # umol/L
   
   Vmax_OATP1B3c = PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Vmax_OATP1B3") %>% 
+    filter(Parameter == "Vmax",
+           Parameter_specific == "OATP1B3") %>% 
     pull(Value) %>% as.numeric()*1e-3          # umol/min/mg protein
   Km_OATP1B3c = PhysChemTK_params %>% 
-    filter(Parameter_Abr == "Km_OATP1B3") %>% 
+    filter(Parameter == "Km",
+           Parameter_specific == "OATP1B3") %>% 
     pull(Value) %>% as.numeric()               # umol/L
   
   # IVIVE scaling factors
@@ -327,11 +328,18 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   
   ## Active transport
   
-  Vmax_OAT4c = 4.5 *1e-3           # umol/min/mg protein, Louisse et al. 2024 doi.org/10.1016/j.tox.2024.153961 (nmol -> umol)
-  Km_OAT4c = 47                    # ug/L, scaled from uM, Louisse et al. 2024 doi.org/10.1016/j.tox.2024.153961
+  Vmax_OAT4c = PhysChemTK_params %>% 
+    filter(Parameter == "Vmax",
+           Parameter_specific == "OAT4")  %>% 
+    pull(Value) %>% as.numeric() *1e-3        # umol/L
+    
+  Km_OAT4c = PhysChemTK_params %>% 
+    filter(Parameter == "Km",
+           Parameter_specific == "OAT4")  %>% 
+    pull(Value) %>% as.numeric()             # ug/L
   
   # IVIVE 
-  REF_OAT4 <- 1.9/0.063                 # relative expression factor OAT,  calculated from: OAT4_vivo / OAT4_vitro  (pmol/mg membrane protein/ pmol/mg membrane protein); in vivo: Al-Madjoub et al 2021 (https://doi.org/10.1002/cpt.2396), in vitro:; Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables5
+  REF_OAT4 <- 1.9/0.063                 # relative expression factor OAT, calculated from: OAT4_vivo / OAT4_vitro  (pmol/mg membrane protein/ pmol/mg membrane protein); in vivo: Al-Madjoub et al 2021 (https://doi.org/10.1002/cpt.2396), in vitro:; Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables5
   mgOAT.mgK <- 0.17                     # mg of protein per mg kidney; Utsey et al. 2020 http://dx.doi.org/10.1124/dmd.120.090498
   SF_OAT <- mgOAT.mgK * REF_OAT4 * 1e6   # (mg kidney * 1e6 -> kg kidney)
   
