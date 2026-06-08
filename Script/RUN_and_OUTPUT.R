@@ -233,7 +233,7 @@ POST.Run <- function(exposure_type,
   message(glue("Tmax {Tmax} years"))
   
   HalfLife <- half_life$half.life/365  # half-life in years
-  HalfLife <- round(HalfLife)
+  HalfLife <- round(HalfLife,3)
   message(glue("Half-life {HalfLife} years"))
   
   return(list(

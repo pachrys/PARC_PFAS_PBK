@@ -63,37 +63,52 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       # OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
       fu_PTL <- R_PTL*fup/(1 + ((R_PTL-1)*fup)) # Proximal tubule lumen
       fu_Lic <- R_L_ec*fup/(1 + ((R_L_ec-1)*fup)) # Liver intracellular space
+      fu_In  <- fu_Lic # Intestine intracellular space
+      
       
       ### Kinetic ----
       
-      # Gastro-intestinal uptake
+      # Clearances
       CL_IL <- (Papp_SI*SA_SI*1e-3)*60*60*24    # L/d, Intestinal lumen to intestinal tissue (calculations: cm/s -> L/s /1000 -> L/d *60*60*24)
+      message(glue("Abs {CL_IL}"))
       
-      CL_OATP2B1 <- CL_OATP2B1c*60*24*SF_OATP2B1*VIL #L/d
+      CL_OATP2B1_I <- CL_OATP2B1c*60*24*SF_OATP2B1_I*VI #L/d
+      message(glue("OATP2B1_I {CL_OATP2B1_I}"))
       
-      # Liver uptake
       CL_OATP1B1 <- CL_OATP1B1c*60*24*SF_OATP1B1*VL_ec #L/d
+      message(glue("OATP1B1 {CL_OATP1B1}"))
+      
       CL_OATP1B3 <- CL_OATP1B3c*60*24*SF_OATP1B3*VL_ec #L/d
-      CL_NTCP <- CL_NTCPc*60*24*SF_NTCP*VL_ec #L/d
+      message(glue("OATP1B3 {CL_OATP1B3}"))
       
-      # Biliary excretion
+      CL_OATP2B1_L <- CL_OATP2B1c*60*24*SF_OATP2B1_L*VL_ec #L/d
+      message(glue("OATP2B1_L {CL_OATP2B1_L}"))
+      
+      CL_NTCP <- CL_NTCPc*60*24*SF_NTCP*VL_ec # L/d    
+      message(glue("NTCP {CL_NTCP}"))
+      
       CL_BSEP <- CL_BSEPc*60*24*SF_BSEP*VL_ic         # L/d
+      message(glue("BSEP {CL_BSEP}"))
       
-      # Renal clearance
-      CL_OAT4 = CL_OAT4c*60*24*SF_OAT4*VPT           # L/d (min -> d; /mg protein 
-      CL_OAT3 = CL_OAT3c*60*24*SF_OAT3*VPT           # L/d (min -> d)
-      CL_OAT1 = CL_OAT1c*60*24*SF_OAT1*VPT           # L/d (min -> d)
+      CL_OAT4 <- CL_OAT4c*60*24*SF_OAT4*VPT           # L/d (min -> d; /mg protein 
+      message(glue("OAT4 {CL_OAT4}"))
+      
+      CL_OAT3 <- CL_OAT3c*60*24*SF_OAT3*VPT           # L/d (min -> d)
+      message(glue("OAT3 {CL_OAT3}"))
+      
+      CL_OAT1 <- CL_OAT1c*60*24*SF_OAT1*VPT           # L/d (min -> d)
+      message(glue("OAT1 {CL_OAT1}"))
       
       # Clearance via menstruation
-      CL_menses = CL_menses     # L/d, plasma menstrual loss
+      CL_menses <- CL_menses     # L/d, plasma menstrual loss
       
       ## Dose -------------------------
       
       if(t<expSTOP){DoseOn=1} else{DoseOn=0}
       
       ## Oral exposure ##
-      DOral = expOral*BW*DoseOn         # ug, PFOA oral dose
-      OralD = DOral
+      DOral <- expOral*BW*DoseOn         # ug, PFOA oral dose
+      OralD <- DOral
       
       ## Concentrations -------------------------
       
@@ -122,24 +137,26 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       
       ## Differential equations -------------------------
       
-      dOD =  OralD - OD             # ug/d, Oral dose input OralD
+      dOD <-  OralD - OD             # ug/d, Oral dose input OralD
       
       dAIL <- + OD - tco*AIL - CL_IL*CIL +
-        - CL_OATP2B1*CIL +
+        - CL_OATP2B1_I*CIL + #*fu_In +
         + CL_BSEP*CL_ic*fu_Lic          # ug/d, Intestine lumen
       
       dAI <- QI*(CP - CVI) + CL_IL*CIL + 
-        + CL_OATP2B1*CIL                     # ug/d, Intestinal
+        + CL_OATP2B1_I*CIL #*fu_In                     # ug/d, Intestinal
       
       dAFe <-  tco*AIL                                       # ug/d, Feces
       
       
       dAL_ec <- + QI*CVI + QL*CP - (QI+QL)*CVL_ec + 
+        - CL_OATP2B1_L*CL_ec*fup +
         - CL_OATP1B1*CL_ec*fup +
         - CL_OATP1B3*CL_ec*fup +          # ug/d, Liver extracellular space (vascular + interstitial space)
         - CL_NTCP*CL_ec*fup
       
-      dAL_ic <- CL_OATP1B1*CL_ec*fup +
+      dAL_ic <- CL_OATP2B1_L*CL_ec*fup +
+        + CL_OATP1B1*CL_ec*fup +
         + CL_OATP1B3*CL_ec*fup +
         + CL_NTCP*CL_ec*fup +
         - CL_BSEP*CL_ic*fu_Lic             # ug/d, Liver intracellular space
@@ -148,10 +165,10 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       dAPTT <- QK*(CP - CPTT) + 
         + CL_OAT1*fup*CP +
         + CL_OAT3*fup*CP +
-        + CL_OAT4*CPTL*fu_PTL      # ug/d, Proximal tubule tissue 
+        + CL_OAT4*CPTL*fu_PTL # ug/d, Proximal tubule tissue 
       
       dAPTL <- + fup*GFR*CP - QT*CPTL +
-        - CL_OAT4*CPTL*fu_PTL      # ug/d, Proximal tubule lumen    
+        - CL_OAT4*CPTL*fu_PTL   # ug/d, Proximal tubule lumen    
       
       dARKT <- QK*(CPTT - CVRKT)                               # ug/d, Rest of kidney
       

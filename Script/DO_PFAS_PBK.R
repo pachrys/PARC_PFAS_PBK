@@ -37,11 +37,15 @@
   dir.create(OUTPUT, recursive = TRUE)
   
   # Load input files
-  INPUT_dummy <- read.csv(here("Input", "INPUT_dummy.csv"))
   Physio.c <- read_csv(here("Input", "PhysioVariables.csv"))
   Tissue.c <- read_csv(here("Input", "TissueComposition.csv"))
   PhysChemTK.c <- read_xlsx(here("Input", "TK_parameters.xlsx")) 
   
+  PhysChemTK.c <- PhysChemTK.c %>% 
+    pivot_wider(names_from = Source, values_from = Value) %>% 
+    mutate(Value = Predicted)
+    # mutate(Value = ifelse(!is.na(Observed), Observed, Predicted))
+
   # Load R files 
   source(here("Script", "RUN_and_OUTPUT.R"))
   source(here("Script", "CALC_Parameters.R"), local = TRUE)
@@ -56,9 +60,9 @@
   
   # Exposure ----
   exposure_type = "Oral"
-  exp_Oral = 0.0418 # ug/kg/day, (for Abraham: 3.96/BW of 82Kg),to be used only when both oral and dermal are used
+  exp_Oral = 0.04829268 # ug/kg/day, (for Abraham: 3.96/BW of 82Kg),to be used only when both oral and dermal are used
   exp = exp_Oral # ug/kg/day 
-  expSTOP = 5*365 #7300 #50*365 # time in days after which the exposure stopped
+  expSTOP = 1 #7300 #50*365 # time in days after which the exposure stopped
   
   # Subject-relevant information
   sex = "F" # sex either "F" or "M" if none then default is "M"
@@ -67,7 +71,7 @@
 
   # Simulation relevant information
   Tstart = 0 # days, start of the simulation
-  Tstop = 20*365 # days, stop of the simulation
+  Tstop = 365 # days, stop of the simulation
   Dt = 1  # days, iteration steps (decrease/increase depending on run time)
   
   PFAS.RESULTS <- list(
@@ -78,11 +82,15 @@
   names(PFAS.RESULTS$CALC_Parameters) <- PFAS_list
   names(PFAS.RESULTS$PBK_OUTPUT) <- PFAS_list
  
+  FinalParam <- NULL
+  
   for (i in 1:nPFAS) {
     
-    PFAS <- PFAS_list[i]
-    message(glue("Simulating {PFAS} {i} of {nPFAS} PFAS"))
+    PFAS <- PFAS_list[12]
+    message(glue("Simulating {PFAS} {12} of {nPFAS} PFAS"))
     PhysChemTK_params <- PhysChemTK.c %>% filter(Acronym == PFAS) 
+    FinalParam[[12]] <- PhysChemTK_params
+    # write.csv(PhysChemTK_params, paste0("Observed_PhysChemTKparams", PFAS, ".csv"))
   
   MODEL_OUTPUT <- if(Lifestage == "Yes"){ # Individual and lifestage
     
@@ -132,8 +140,8 @@
     
   }
   
-  PFAS.RESULTS$CALC_Parameters[[i]] <- MODEL_OUTPUT$CALC_Parameters
-  PFAS.RESULTS$PBK_OUTPUT[[i]] <- MODEL_OUTPUT$PBK_OUTPUT
+  PFAS.RESULTS$CALC_Parameters[[12]] <- MODEL_OUTPUT$CALC_Parameters
+  PFAS.RESULTS$PBK_OUTPUT[[12]] <- MODEL_OUTPUT$PBK_OUTPUT
   
   }
  
@@ -149,12 +157,11 @@
   
   for (i in 1:nPFAS) {
     
-    PFAS <- PFAS_list[i]
-    message(glue("\
-                 {PFAS}"))
-    Data <- RawData$PBK_OUTPUT[[i]]
+    PFAS <- PFAS_list[12]
+    message(glue("{PFAS}------------------------------------"))
+    Data <- RawData$PBK_OUTPUT[[12]]
     
-    POST.RUN_RESULTS[[i]] <- POST.Run(exposure_type,  
+    POST.RUN_RESULTS[[12]] <- POST.Run(exposure_type,  
                                       exp,
                                       exp_Oral,
                                       expSTOP,   
@@ -171,26 +178,10 @@
   names(POST.RUN_RESULTS) <- PFAS_list
   
   
-  save(POST.RUN_RESULTS, file = here(OUTPUT, "POST.RUN_RESULTS.RData"))
+  save(POST.RUN_RESULTS, file = here(OUTPUT, "laIVIVE_PredictedParams_POST.RUN_RESULTS.RData"))
  
 
+  names(FinalParam) <- PFAS_list
+  CollectParameters <- do.call("rbind", FinalParam)
+  write.csv(CollectParameters, "PredictedParams.csv", row.names = FALSE)
   
-  # Create Report ----
-  # quarto_render(input = (here("PBK_Results_Report.qmd")),
-  #               output_format = "pdf",
-  #               # output_file = (here(OUTPUT, "PBK_Results_Report.html")),
-  #               execute_params = list(Lifestage = Lifestage,
-  #                                     Population = Population,
-  #                                     Test_study = Test_study)
-  # )
-  # 
-  # quarto_render(input = (here("PBK_Results_Report.qmd")),
-  #               output_format = "html",
-  #               # output_file = (here(OUTPUT, "PBK_Results_Report.html")),
-  #               execute_params = list(Lifestage = Lifestage,
-  #                                     Population = Population,
-  #                                     Test_study = Test_study)
-  # )
-  # browseURL(here("PBK_Results_Report.html"))
-  # 
-  # 
