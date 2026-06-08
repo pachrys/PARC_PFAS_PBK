@@ -140,11 +140,11 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       dOD <-  OralD - OD             # ug/d, Oral dose input OralD
       
       dAIL <- + OD - tco*AIL - CL_IL*CIL +
-        - CL_OATP2B1_I*CIL + #*fu_In +
+        + CL_OATP2B1_I*CI*fu_In +
         + CL_BSEP*CL_ic*fu_Lic          # ug/d, Intestine lumen
       
       dAI <- QI*(CP - CVI) + CL_IL*CIL + 
-        + CL_OATP2B1_I*CIL #*fu_In                     # ug/d, Intestinal
+        - CL_OATP2B1_I*CI*fu_In                     # ug/d, Intestinal
       
       dAFe <-  tco*AIL                                       # ug/d, Feces
       
