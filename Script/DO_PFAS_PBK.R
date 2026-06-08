@@ -86,10 +86,10 @@
   
   for (i in 1:nPFAS) {
     
-    PFAS <- PFAS_list[12]
-    message(glue("Simulating {PFAS} {12} of {nPFAS} PFAS"))
+    PFAS <- PFAS_list[i]
+    message(glue("Simulating {PFAS} {i} of {nPFAS} PFAS"))
     PhysChemTK_params <- PhysChemTK.c %>% filter(Acronym == PFAS) 
-    FinalParam[[12]] <- PhysChemTK_params
+    FinalParam[[i]] <- PhysChemTK_params
     # write.csv(PhysChemTK_params, paste0("Observed_PhysChemTKparams", PFAS, ".csv"))
   
   MODEL_OUTPUT <- if(Lifestage == "Yes"){ # Individual and lifestage
@@ -140,8 +140,8 @@
     
   }
   
-  PFAS.RESULTS$CALC_Parameters[[12]] <- MODEL_OUTPUT$CALC_Parameters
-  PFAS.RESULTS$PBK_OUTPUT[[12]] <- MODEL_OUTPUT$PBK_OUTPUT
+  PFAS.RESULTS$CALC_Parameters[[i]] <- MODEL_OUTPUT$CALC_Parameters
+  PFAS.RESULTS$PBK_OUTPUT[[i]] <- MODEL_OUTPUT$PBK_OUTPUT
   
   }
  
@@ -157,11 +157,11 @@
   
   for (i in 1:nPFAS) {
     
-    PFAS <- PFAS_list[12]
+    PFAS <- PFAS_list[i]
     message(glue("{PFAS}------------------------------------"))
-    Data <- RawData$PBK_OUTPUT[[12]]
+    Data <- RawData$PBK_OUTPUT[[i]]
     
-    POST.RUN_RESULTS[[12]] <- POST.Run(exposure_type,  
+    POST.RUN_RESULTS[[i]] <- POST.Run(exposure_type,  
                                       exp,
                                       exp_Oral,
                                       expSTOP,   
