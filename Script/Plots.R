@@ -54,7 +54,7 @@ CP_theme <- theme_minimal() +
     strip.text.x = element_text(size = 35)
   )
 
-load(here("Output","laIVIVE_PredictedParams_POST.RUN_RESULTS.RData")) #Predicted
+load(here("Output","POST.RUN_RESULTS.RData")) #Predicted
 PFAS <- names(POST.RUN_RESULTS)
 # list2env(POST.RUN_RESULTS, envir = .GlobalEnv) to separate the result list
 PredParam_POST.RUN_RESULTS <- POST.RUN_RESULTS
@@ -77,30 +77,30 @@ Results_PredictedParams <- tibble(
   separate(col = Value, into = c("Value", "Unit"), sep = "_") %>% 
   mutate(Parameter_source = "Predicted")
 
-load(here("Output","laIVIVE_ObservedParams_POST.RUN_RESULTS.RData"))
-ObsParam_POST.RUN_RESULTS <- POST.RUN_RESULTS
-Results_ObservedParams <- tibble(
-  PFAS = PFAS, 
-  AUC = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-    ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$AUC
-  }),
-  Cmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-    ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Cmax
-  }),
-  Tmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-    ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Tmax
-  }),
-  Half_life = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-    ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$HalfLife
-  })
-) %>% 
-  pivot_longer(AUC:Half_life, names_to = "TK", values_to = "Value") %>% 
-  separate(col = Value, into = c("Value", "Unit"), sep = "_") %>% 
-  mutate(Parameter_source = "Observed")
+# load(here("Output","laIVIVE_ObservedParams_POST.RUN_RESULTS.RData"))
+# ObsParam_POST.RUN_RESULTS <- POST.RUN_RESULTS
+# Results_ObservedParams <- tibble(
+#   PFAS = PFAS, 
+#   AUC = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
+#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$AUC
+#   }),
+#   Cmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
+#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Cmax
+#   }),
+#   Tmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
+#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Tmax
+#   }),
+#   Half_life = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
+#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$HalfLife
+#   })
+# ) %>% 
+#   pivot_longer(AUC:Half_life, names_to = "TK", values_to = "Value") %>% 
+#   separate(col = Value, into = c("Value", "Unit"), sep = "_") %>% 
+#   mutate(Parameter_source = "Observed")
 
-Results_df <- rbind(Results_PredictedParams, Results_ObservedParams) %>% 
-  mutate(Value = as.numeric(Value)) %>% 
-  mutate(Value = ifelse(TK == "Cmax", Value/0.04829268, Value)) #normalise Cmax by dose
+Results_df <- Results_PredictedParams %>% #rbind(Results_PredictedParams, Results_ObservedParams) %>% 
+  mutate(Value = as.numeric(Value)) #%>% 
+  # mutate(Value = ifelse(TK == "Cmax", Value/0.04829268, Value)) #normalise Cmax by dose
 
 ModelParameters_df <- read_xlsx(here("ModelParameters.xlsx")) %>% 
   mutate(Value = as.numeric(Value)) %>% 
@@ -162,7 +162,7 @@ for(i in 1:nPFAS){
   
   PFAS_t <- PFAS_list[i]
   Results <- Results_all %>% filter(PFAS == PFAS_t) 
-  ModelParameters <- ModelParameters_df %>% filter(Acronym == PFAS_t) 
+  # ModelParameters <- ModelParameters_df %>% filter(Acronym == PFAS_t) 
 
   Results_plot <- ggplot(filter(Results, Source == "Predicted"), 
                          aes(x = TK, 
@@ -194,31 +194,31 @@ for(i in 1:nPFAS){
     theme(axis.text.x = element_blank())
   
   
-  Params <- ggplot(ModelParameters, 
-                   aes(x = Parameter, 
-                       y = Value, 
-                       colour = Name,
-                       shape = Source)) +
-    # geom_col(position = "dodge") +
-    geom_point(alpha = 0.9, position = position_dodge(width = 0.3), size = 2) +
-    scale_color_viridis_d(option = "D",
-                          labels = c("Observed" = "Predicted, measured parameters where available", 
-                                     "Predicted" = "Predicted, only estimated parameters"))+
-    scale_shape_manual(values = c("Observed" = 19, 
-                                  "Predicted" = 17),
-                       labels = c("Observed" = "Measured parameter",
-                                  "Predicted" = "Estimated parameter")) +
-    guides(color = guide_legend(override.aes = list(size = 0.5)),
-           shape = guide_legend(override.aes = list(size = 0.5))
-    ) +
-    facet_wrap(~TK_process, scales = "free", nrow = 1) +
-    labs(title = paste0(PFAS_t, ": input parameters"),
-         x = "",
-         y = "") +
-    CP_theme
+  # Params <- ggplot(ModelParameters, 
+  #                  aes(x = Parameter, 
+  #                      y = Value, 
+  #                      colour = Name,
+  #                      shape = Source)) +
+  #   # geom_col(position = "dodge") +
+  #   geom_point(alpha = 0.9, position = position_dodge(width = 0.3), size = 2) +
+  #   scale_color_viridis_d(option = "D",
+  #                         labels = c("Observed" = "Predicted, measured parameters where available", 
+  #                                    "Predicted" = "Predicted, only estimated parameters"))+
+  #   scale_shape_manual(values = c("Observed" = 19, 
+  #                                 "Predicted" = 17),
+  #                      labels = c("Observed" = "Measured parameter",
+  #                                 "Predicted" = "Estimated parameter")) +
+  #   guides(color = guide_legend(override.aes = list(size = 0.5)),
+  #          shape = guide_legend(override.aes = list(size = 0.5))
+  #   ) +
+  #   facet_wrap(~TK_process, scales = "free", nrow = 1) +
+  #   labs(title = paste0(PFAS_t, ": input parameters"),
+  #        x = "",
+  #        y = "") +
+  #   CP_theme
   
-  Plot_I <- Results_plot + Params + 
-    plot_layout(widths = c(1,1))
+  Plot_I <- Results_plot #+ Params + 
+    # plot_layout(widths = c(1,1))
   
   # ,
   #               guides = "collect") &
@@ -228,9 +228,18 @@ for(i in 1:nPFAS){
   
 }
 
+library(gridExtra)
+
+pdf("plots.pdf", onefile = TRUE)
+for (i in 1:nPFAS) {
+  do.call("grid.arrange", Plot_list)  
+}
+dev.off()
+
+
 for(i in 1:nPFAS){
   PFAS_t <- PFAS_list[i]
-    ggsave(plot = Plot_list[[i]], file = paste("laIVIVE_Predictions_Params",PFAS_t,".png",sep=""),
+    ggsave(plot = Plot_list[[i]], file = paste(PFAS_t,".png",sep=""),
      dpi = 600,
      width = 18,
      height = 9,

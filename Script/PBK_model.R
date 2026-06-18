@@ -70,34 +70,38 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       
       # Clearances
       CL_IL <- (Papp_SI*SA_SI*1e-3)*60*60*24    # L/d, Intestinal lumen to intestinal tissue (calculations: cm/s -> L/s /1000 -> L/d *60*60*24)
-      message(glue("Abs {CL_IL}"))
+      
+      # SF_OATP2B1_I <-  
+      # SF_OATP1B1 <- 
+      # SF_OATP1B3 <- 
+      # SF_OATP2B1 <- 
+      # SF_NTCP <- 
+      # SF_BSEP <- #27.13	1386.98	537.30 53729.88	5.37
+      # SF_OAT4 <-
+      # SF_OAT3 <-
+      # SF_OAT1 <-
       
       CL_OATP2B1_I <- CL_OATP2B1c*60*24*SF_OATP2B1_I*VI #L/d
-      message(glue("OATP2B1_I {CL_OATP2B1_I}"))
-      
       CL_OATP1B1 <- CL_OATP1B1c*60*24*SF_OATP1B1*VL_ec #L/d
-      message(glue("OATP1B1 {CL_OATP1B1}"))
-      
       CL_OATP1B3 <- CL_OATP1B3c*60*24*SF_OATP1B3*VL_ec #L/d
-      message(glue("OATP1B3 {CL_OATP1B3}"))
-      
-      CL_OATP2B1_L <- CL_OATP2B1c*60*24*SF_OATP2B1_L*VL_ec #L/d
-      message(glue("OATP2B1_L {CL_OATP2B1_L}"))
-      
+      CL_OATP2B1_L <- CL_OATP2B1c*60*24*SF_OATP2B1*VL_ec #L/d
       CL_NTCP <- CL_NTCPc*60*24*SF_NTCP*VL_ec # L/d    
-      message(glue("NTCP {CL_NTCP}"))
-      
       CL_BSEP <- CL_BSEPc*60*24*SF_BSEP*VL_ic         # L/d
-      message(glue("BSEP {CL_BSEP}"))
-      
       CL_OAT4 <- CL_OAT4c*60*24*SF_OAT4*VPT           # L/d (min -> d; /mg protein 
-      message(glue("OAT4 {CL_OAT4}"))
-      
       CL_OAT3 <- CL_OAT3c*60*24*SF_OAT3*VPT           # L/d (min -> d)
-      message(glue("OAT3 {CL_OAT3}"))
-      
       CL_OAT1 <- CL_OAT1c*60*24*SF_OAT1*VPT           # L/d (min -> d)
-      message(glue("OAT1 {CL_OAT1}"))
+      
+      
+      # message(glue("Abs {CL_IL}"))
+      # message(glue("OATP2B1_I {CL_OATP2B1_I}"))
+      # message(glue("OATP1B1 {CL_OATP1B1}"))
+      # message(glue("OATP1B3 {CL_OATP1B3}"))
+      # message(glue("OATP2B1_L {CL_OATP2B1_L}"))
+      # message(glue("NTCP {CL_NTCP}"))
+      # message(glue("BSEP {CL_BSEP}"))
+      # message(glue("OAT4 {CL_OAT4}"))
+      # message(glue("OAT3 {CL_OAT3}"))
+      # message(glue("OAT1 {CL_OAT1}"))
       
       # Clearance via menstruation
       CL_menses <- CL_menses     # L/d, plasma menstrual loss
@@ -140,11 +144,11 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       dOD <-  OralD - OD             # ug/d, Oral dose input OralD
       
       dAIL <- + OD - tco*AIL - CL_IL*CIL +
-        + CL_OATP2B1_I*CI*fu_In +
+        - CL_OATP2B1_I*CL_ic*fu_Lic +
         + CL_BSEP*CL_ic*fu_Lic          # ug/d, Intestine lumen
       
       dAI <- QI*(CP - CVI) + CL_IL*CIL + 
-        - CL_OATP2B1_I*CI*fu_In                     # ug/d, Intestinal
+        + CL_OATP2B1_I*CL_ic*fu_Lic #CL_OATP2B1_I*CI*fu_In                     # ug/d, Intestinal
       
       dAFe <-  tco*AIL                                       # ug/d, Feces
       
@@ -223,7 +227,7 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
              dAin
       ), 
       c(CIL = CIL,
-        CI = CI, CVI = CVI, 
+        CI = CI, CVI = CVI,
         CL_ec = CL_ec,
         CL_ic = CL_ic,
         CVL_ec = CVL_ec,
@@ -234,7 +238,7 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
         CA = CA, CVA = CVA,
         CR = CR, CVR = CVR,
         CP = CP,
-        Atot = Atot, 
+        Atot = Atot,
         MB = MB
       )
       )
@@ -242,9 +246,9 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
   }
   
   output_PBK <-lsoda(y = y, 
-                      times = times, 
-                      func = PBK.model,
-                      parms = parms)
+                     times = times, 
+                     func = PBK.model,
+                     parms = parms)
   
   return(as.data.frame(output_PBK))
 }

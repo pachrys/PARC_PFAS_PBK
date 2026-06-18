@@ -79,10 +79,14 @@
     PBK_OUTPUT = vector("list", nPFAS) #,
   )
   
+  ModelParams <- NULL
+  
   names(PFAS.RESULTS$CALC_Parameters) <- PFAS_list
   names(PFAS.RESULTS$PBK_OUTPUT) <- PFAS_list
  
   FinalParam <- NULL
+  
+  
   
   for (i in 1:nPFAS) {
     
@@ -142,9 +146,17 @@
   
   PFAS.RESULTS$CALC_Parameters[[i]] <- MODEL_OUTPUT$CALC_Parameters
   PFAS.RESULTS$PBK_OUTPUT[[i]] <- MODEL_OUTPUT$PBK_OUTPUT
+  ModelParams[[i]] <- MODEL_OUTPUT$CALC_Parameters
   
   }
- 
+  
+  names(ModelParams) <- PFAS_list
+  LCA_parameters <- do.call(rbind, ModelParams)
+  
+  save(ModelParams, file = "LCA_p.RData")
+  
+
+  
   # Save Results ----
 
   RawData <- PFAS.RESULTS
@@ -178,10 +190,13 @@
   names(POST.RUN_RESULTS) <- PFAS_list
   
   
-  save(POST.RUN_RESULTS, file = here(OUTPUT, "laIVIVE_PredictedParams_POST.RUN_RESULTS.RData"))
+  save(POST.RUN_RESULTS, 
+       file = here(OUTPUT, "POST.RUN_RESULTS.RData"))
  
 
   names(FinalParam) <- PFAS_list
   CollectParameters <- do.call("rbind", FinalParam)
-  write.csv(CollectParameters, "PredictedParams.csv", row.names = FALSE)
+  write.csv(CollectParameters, 
+            file = here(OUTPUT, "PredictedParams.csv"), 
+            row.names = FALSE)
   
