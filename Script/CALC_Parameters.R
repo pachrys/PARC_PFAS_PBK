@@ -308,17 +308,18 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   # REF_NTCP = NTCP_L/1.202  # relative expression factor NTCP, calculated from: OATP1B3_vivo / OATP1B3_vitro  (pmol/mg membrane protein/pmol/mg membrane protein); Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables7 and s6, ref23
   # 
   # mgProtein.mgL = 0.35 #Prasad et al. 2016 DOI:10.1002/cpt.409 # 0.18                                 # mg of protein per mg liver; Utsey et al. 2020 http://dx.doi.org/10.1124/dmd.120.090498
-  SF_OATP1B1 = 19920970 #mgProtein.mgL * REF_OATP1B1 * 1e6       # (mg liver * 1e6 -> kg liver)
-  SF_OATP1B3 = 1223163 #mgProtein.mgL * REF_OATP1B3 * 1e6       # (mg liver * 1e6 -> kg liver)
-  SF_OATP2B1 = 79248.77 #mgProtein.mgL * REF_OATP2B1_L * 1e6       # (mg liver * 1e6 -> kg liver)
-  SF_NTCP = 726914.9 #mgProtein.mgL * REF_NTCP * 1e6             # (mg liver * 1e6 -> kg liver)
+  SF_OATP1B1 = 11017310  #mgProtein.mgL * REF_OATP1B1 * 1e6       # (mg liver * 1e6 -> kg liver)
+  SF_OATP1B3 = 770384.3 #mgProtein.mgL * REF_OATP1B3 * 1e6       # (mg liver * 1e6 -> kg liver)
+  SF_OATP2B1 = 356421.6 #mgProtein.mgL * REF_OATP2B1_L * 1e6       # (mg liver * 1e6 -> kg liver)
+  SF_NTCP = 392315.4 #mgProtein.mgL * REF_NTCP * 1e6             # (mg liver * 1e6 -> kg liver)
   
 
   
   ### Biliary clearance -------------------------
   # Input data, in vitro clearance
-  Vmax_BSEPc <- 7                            # umol/min/mg BSEP, Average active transport of bile acids, assuming that the maximum velocity of PFOA transport by BSEP corresponds to that of bile acids ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011 
-  Km_BSEP <- 16.4                            # umol/L, uM, Average affinity constant of bile acids to BSEP, following the above assumption ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
+  Vmax_BSEPc <- mean(c(5.8, 7, 8.4))                            # umol/min/mg BSEP, Average active transport of bile acids, assuming that the maximum velocity of PFOA transport by BSEP corresponds to that of bile acids ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011 
+  Km_BSEP <- mean(c(4.3, 25.9, 19))                            # umol/L, uM, Average affinity constant of bile acids to BSEP, following the above assumption ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
+  
   CL_BSEPc <- Vmax_BSEPc/Km_BSEP
   
   # MW_BSEP <- 146400 #g/mol ref: The Human Protein Atlas (https://www.proteinatlas.org/ENSG00000073734-ABCB11/structure)
@@ -329,7 +330,7 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   # # IVIVE 
   # mgBSEP.HC <- 0.839 * 140000 * 1e-9         # mg BSEP/1e6 hepatocytes (0.839 pmole BSEP/1e6 hepatocytes (amound of BSEP per hepatocyte) * 140000 g/mole (MW BSEP) -> pg * 1e-9 -> mg) de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011]
   # HC.GL <- 99                                 # 1e6 hepatocytes in the liver ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
-  SF_BSEP <- 537.2988 #mgBSEP.HC * HC.GL * 1e3          # Scaling factor for BSEP mediated hepatic efflux for GCA and GCDC ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
+  SF_BSEP <- 297.3746 #mgBSEP.HC * HC.GL * 1e3          # Scaling factor for BSEP mediated hepatic efflux for GCA and GCDC ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
   
   
   ### Renal Clearance -------------------------
@@ -354,9 +355,9 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   # REF_OAT1 <- 5.33/2.596              # relative expression factor OAT, calculated from: OAT4_vivo / OAT4_vitro  (pmol/mg membrane protein/ pmol/mg membrane protein); in vivo: Al-Madjoub et al 2021 (https://doi.org/10.1002/cpt.2396) table S3 (mean 10.2, sd 10.1, CV 99%, n = 15), in vitro:; Lin et al. 2023 http://dx.doi.org/10.1021/acs.est.2c05642 tables5
   # 
   # mgProtein.mgK <- 0.21                       # mg of protein per mg kidney; Utsey et al. 2020 http://dx.doi.org/10.1124/dmd.120.090498
-  SF_OAT4 <- 10666670 #mgProtein.mgK * REF_OAT4 * 1e6   # (mg kidney * 1e6 -> kg kidney)
-  SF_OAT3 <- 2835443 #mgProtein.mgK * REF_OAT3 * 1e6   # (mg kidney * 1e6 -> kg kidney)
-  SF_OAT1 <- 825115.6 #mgProtein.mgK * REF_OAT1 * 1e6   # (mg kidney * 1e6 -> kg kidney)
+  SF_OAT4 <- 21047620 #mgProtein.mgK * REF_OAT4 * 1e6   # (mg kidney * 1e6 -> kg kidney)
+  SF_OAT3 <- 4638537 #mgProtein.mgK * REF_OAT3 * 1e6   # (mg kidney * 1e6 -> kg kidney)
+  SF_OAT1 <- 1329353 #mgProtein.mgK * REF_OAT1 * 1e6   # (mg kidney * 1e6 -> kg kidney)
 
   
   ### Final parameter constants -------------------------

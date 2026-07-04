@@ -71,37 +71,34 @@ ORAL_PBK_RUN <- function(y, parms, times){ # Input for ode
       # Clearances
       CL_IL <- (Papp_SI*SA_SI*1e-3)*60*60*24    # L/d, Intestinal lumen to intestinal tissue (calculations: cm/s -> L/s /1000 -> L/d *60*60*24)
       
-      # SF_OATP2B1_I <-  
-      # SF_OATP1B1 <- 
-      # SF_OATP1B3 <- 
-      # SF_OATP2B1 <- 
-      # SF_NTCP <- 
-      # SF_BSEP <- #27.13	1386.98	537.30 53729.88	5.37
-      # SF_OAT4 <-
-      # SF_OAT3 <-
-      # SF_OAT1 <-
-      
       CL_OATP2B1_I <- CL_OATP2B1c*60*24*SF_OATP2B1_I*VI #L/d
+      print("Intestine")
+      print(QI)
+      print(CL_OATP2B1_I)
+      
       CL_OATP1B1 <- CL_OATP1B1c*60*24*SF_OATP1B1*VL_ec #L/d
       CL_OATP1B3 <- CL_OATP1B3c*60*24*SF_OATP1B3*VL_ec #L/d
       CL_OATP2B1_L <- CL_OATP2B1c*60*24*SF_OATP2B1*VL_ec #L/d
       CL_NTCP <- CL_NTCPc*60*24*SF_NTCP*VL_ec # L/d    
+      print("Liver in")
+      print(QI+QL)
+      print(CL_OATP1B1 + CL_OATP1B3 + CL_OATP2B1_L)
+      
       CL_BSEP <- CL_BSEPc*60*24*SF_BSEP*VL_ic         # L/d
+      print("Liver out")
+      print(QI + QL)
+      print(CL_BSEP)
+      
       CL_OAT4 <- CL_OAT4c*60*24*SF_OAT4*VPT           # L/d (min -> d; /mg protein 
       CL_OAT3 <- CL_OAT3c*60*24*SF_OAT3*VPT           # L/d (min -> d)
       CL_OAT1 <- CL_OAT1c*60*24*SF_OAT1*VPT           # L/d (min -> d)
+      print("Kidney in")
+      print(QK)
+      print(CL_OAT1 + CL_OAT3)
       
-      
-      # message(glue("Abs {CL_IL}"))
-      # message(glue("OATP2B1_I {CL_OATP2B1_I}"))
-      # message(glue("OATP1B1 {CL_OATP1B1}"))
-      # message(glue("OATP1B3 {CL_OATP1B3}"))
-      # message(glue("OATP2B1_L {CL_OATP2B1_L}"))
-      # message(glue("NTCP {CL_NTCP}"))
-      # message(glue("BSEP {CL_BSEP}"))
-      # message(glue("OAT4 {CL_OAT4}"))
-      # message(glue("OAT3 {CL_OAT3}"))
-      # message(glue("OAT1 {CL_OAT1}"))
+      print("Kidney out")
+      print(GFR)
+      print(CL_OAT4)
       
       # Clearance via menstruation
       CL_menses <- CL_menses     # L/d, plasma menstrual loss

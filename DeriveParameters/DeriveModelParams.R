@@ -47,14 +47,15 @@ CP_theme <- theme_minimal() +
  strip.text.x = element_text(size = 35)
   )
 
-# Transporter protein abudance ----
+# Transporter protein abundance ----
 
 ProteinAb <-  read_excel(here("Input", "ProteinAbundance.xlsx"))
 ProteinAb_df <- ProteinAb %>% mutate(Reference = factor(ProteinAb$Reference),
                                      Transporter = factor(ProteinAb$Transporter),
                                      Localisation = factor(ProteinAb$Localisation),
                                      min = Protein_abundance-SD,
-                                     max = Protein_abundance+SD)
+                                     max = Protein_abundance+SD) %>% 
+  mutate(min = pmax(min, 0.000))
 
 Meta_df <- ProteinAb_df %>%
   group_by(Transporter, Localisation) %>%
@@ -69,7 +70,7 @@ Calc_SF_df <- Meta_df %>%
          Transporter != "ASBT") %>% 
   mutate(minimum = pmax(minimum, 0.001)) %>% 
   mutate(vitro = c(1001.82, 1.202, 2.596, 0.711, 0.063, 0.120, 0.719, 0.812, 0.812),
-         mgProtein.mgT = c(0.35, 0.35, 0.21, 0.21, 0.21, 0.35, 0.35, 0.13, 0.35)) %>% 
+         mgProtein.mgT = c(0.18, 0.18, 0.17, 0.17, 0.17, 0.18, 0.18, 0.13, 0.18)) %>% 
   pivot_longer(minimum:mean, names_to = "id", values_to = "vivo") %>% 
   select(!sd) %>% 
   mutate(REF = vivo/vitro,
@@ -77,13 +78,14 @@ Calc_SF_df <- Meta_df %>%
 
 Calc_SF_wide <- Calc_SF_df %>% 
   select(Transporter, Localisation, id, SF) %>% 
-  pivot_wider(names_from = id, values_from = SF) %>% 
+  pivot_wider(names_from = id, values_from = SF) 
+
+
+Tests <- Calc_SF_wide %>% 
   mutate("Mult100" = mean*100,
          "Div100" = mean/100) %>% 
   select(!mean) %>% 
-  pivot_longer(minimum:Div100, names_to = "id", values_to = "SF")
-
-Tests <- Calc_SF_wide %>% 
+  pivot_longer(minimum:Div100, names_to = "id", values_to = "SF") %>% 
   select(Transporter, Localisation, id, SF) %>% 
   mutate(What = "SF_",
          Localisation = ifelse(Localisation == "intestine", "_I", "")) %>% 
@@ -91,7 +93,7 @@ Tests <- Calc_SF_wide %>%
   mutate(Test = paste0(id, "_", P)) %>% 
   select(!id)
 
-write.csv(Tests, "LSA_parameters.csv", row.names = FALSE)
+write.csv(Tests, "Updated_LSA_parameters.csv", row.names = FALSE)
 
 
 Liver_SF <- ggplot(filter(Calc_SF_wide, Localisation == "liver"), 
@@ -208,7 +210,6 @@ ggsave(plot = Intestine_p,
 
 Intestine_p_log <- ggplot(filter(ProteinAb_df, Localisation != "liver", Localisation != "kidney"), 
                       aes(x = Transporter, y = log10(Protein_abundance), colour = Reference, shape = Localisation)) +
-  # geom_jitter(aes(Transporter, Protein_abundance, colour = Reference))+
   geom_pointrange(aes(ymin = log10(Protein_abundance-SD), 
                       ymax = log10(Protein_abundance+SD)),
                   position=position_jitter(width=0.3), 

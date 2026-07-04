@@ -77,26 +77,6 @@ Results_PredictedParams <- tibble(
   separate(col = Value, into = c("Value", "Unit"), sep = "_") %>% 
   mutate(Parameter_source = "Predicted")
 
-# load(here("Output","laIVIVE_ObservedParams_POST.RUN_RESULTS.RData"))
-# ObsParam_POST.RUN_RESULTS <- POST.RUN_RESULTS
-# Results_ObservedParams <- tibble(
-#   PFAS = PFAS, 
-#   AUC = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$AUC
-#   }),
-#   Cmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Cmax
-#   }),
-#   Tmax = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$Tmax
-#   }),
-#   Half_life = lapply(names(ObsParam_POST.RUN_RESULTS), function(x) {
-#     ObsParam_POST.RUN_RESULTS[[x]]$ANALYSED_data$HalfLife
-#   })
-# ) %>% 
-#   pivot_longer(AUC:Half_life, names_to = "TK", values_to = "Value") %>% 
-#   separate(col = Value, into = c("Value", "Unit"), sep = "_") %>% 
-#   mutate(Parameter_source = "Observed")
 
 Results_df <- Results_PredictedParams %>% #rbind(Results_PredictedParams, Results_ObservedParams) %>% 
   mutate(Value = as.numeric(Value)) #%>% 

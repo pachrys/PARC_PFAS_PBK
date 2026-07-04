@@ -15,6 +15,8 @@
   library(scales)
   library(patchwork)
   library(pracma)
+  library(glue)
+  library(FME)
   
   
   # For plotting
@@ -83,30 +85,16 @@
   
   nPFAS <- length(PFAS_list)
   
-  LSA_PFAS_RESULTS <- list(
-    CALC_Parameters = vector("list", nPFAS), # list of length nPFAS
-    Sensi_OUTPUT = vector("list", nPFAS) #
-  )
+  LSA_parms <- c("SF_OATP2B1_I", 
+                 "SF_OATP1B1",
+                 "SF_OATP1B3", 
+                 "SF_OATP2B1", 
+                 "SF_NTCP", 
+                 "SF_BSEP", 
+                 "SF_OAT4",
+                 "SF_OAT3", 
+                 "SF_OAT1")
   
-  names(LSA_PFAS_RESULTS$CALC_Parameters) <- PFAS_list
-  names(LSA_PFAS_RESULTS$Sensi_OUTPUT) <- PFAS_list
-  
-  FinalParam <- NULL
-  
-  LSA_parms <- c("SF_OATP2B1_I", "SF_OATP1B1", "SF_OATP1B3", "SF_OATP2B1", "SF_NTCP", "SF_BSEP", "SF_OAT4", "SF_OAT3", "SF_OAT1")
-  
-  # for (i in 1:nPFAS) {
-    
-    PFAS <- PFAS_list[7]
-    message(glue("{PFAS}------------------------------------"))
-    
-    pars <- ModelParams[[PFAS]]
-    
-  # }
-#   
-  pars <- as.list(log10(unlist(pars)))
-  
-
   solvePBK <- function(pars){
     
     
@@ -309,33 +297,30 @@
                dAin),
              c(CP = CP,
                MB = MB)
-             )
-        })
+        )
+      })
     }
     
-    
-    
-    
     state <- c(OD = 0,
-                AIL = 0.1,
-                AI = 0, 
-                AFe = 0,
-                AL_ec = 0,
-                AL_ic = 0,
-                APTT = 0,
-                APTL = 0,
-                ARKT = 0,
-                ARKL = 0,
-                AUr = 0,
-                AA = 0,
-                AR = 0,
-                AP = 0,
-                AMp = 0,
-                Ain = 0)
+               AIL = 0.1,
+               AI = 0, 
+               AFe = 0,
+               AL_ec = 0,
+               AL_ic = 0,
+               APTT = 0,
+               APTL = 0,
+               ARKT = 0,
+               ARKL = 0,
+               AUr = 0,
+               AA = 0,
+               AR = 0,
+               AP = 0,
+               AMp = 0,
+               Ain = 0)
     
     tout    <- seq(0, 1825, by = 10)
     
-    pars <- as.list(10^(unlist(pars)))
+    # pars <- as.list(10^(unlist(pars)))
     
     PBK_OUTPUT <- as.data.frame(
       lsoda(y = state, 
@@ -364,75 +349,82 @@
     
     
   }
-  out <- solvePBK(pars)
   
-  # SENSI_all <- sensFun(
-  #   func = SENSI_model,
-  #   parms = parm.c, 
-  #   tiny = 0.01)
-  
-  
-  # lsa <- sensFun(func = SENSI_model,
-  #                parms = parm.c,
-  #                sensvar = "CP", 
-  #                senspar = LSA_parms,
-  #                tiny = 0.01 # change parameter by 1%
-  #                  )
-  # 
-  # head(lsa)
-  # summary(lsa)
-  # 
-  # LSArun <- function(parms){
-  #     solve(model2, parms, inits=inits, events=ev, cores=4) # This is the solve function I use in the LSA?
-  #   }
-  
-  SnsPBK <- sensFun(func = solvePBK, 
-                    parms = pars,
-                    senspar = LSA_parms,
-                    sensvar = "CP", 
-                    tiny = log10(99) #1.4
-                    # ,10
-                    # tiny = log10(c(19.80,
-                    #          32.20,
-                    #          102.00,
-                    #          9600.00,
-                    #          3200.00,
-                    #          6830.05,
-                    #          6.08,
-                    #          495.00,
-                    #          1506.53)
-                    # )
-                    )
-  
-  head(SnsPBK)
-  plot(SnsPBK)
-  plot(SnsPBK, type = "b", pch = 15:19, col = 2:6,
-       main = "Sensitivity all vars")
+  LSA_PFAS_RESULTS <- list()
 
-  summary(SnsPBK)
-  plot(summary(SnsPBK))
+  for (i in 1:nPFAS) {
+    
+    PFAS <- PFAS_list[i]
+    message(glue("{PFAS}------------------------------------"))
+    
+    pars <- ModelParams[[PFAS]]
+    # pars <- as.list(log10(unlist(pars)))
+    # out <- solvePBK(pars)
+    SnsPBK <- sensFun(func = solvePBK, 
+                      parms = pars,
+                      senspar = LSA_parms,
+                      sensvar = "CP" 
+                      # tiny = 0.01 #0.01
+                      # ,10
+                      # tiny = log10(c(19.80,
+                      #          32.20,
+                      #          102.00,
+                      #          9600.00,
+                      #          3200.00,
+                      #          6830.05,
+                      #          6.08,
+                      #          495.00,
+                      #          1506.53)
+                      # )
+    )
+    
+    head(SnsPBK)
+    summary(SnsPBK)
+    Sns_summary <- summary(SnsPBK) %>% as.data.frame()
+    
+    LSA_PFAS_RESULTS[[i]] <- Sns_summary
+    
+    plot(summary(SnsPBK), sub = PFAS)
+
+  }
+  
+  names(LSA_PFAS_RESULTS) <- PFAS_list
+
+
+  save(LSA_PFAS_RESULTS, 
+       file = here(OUTPUT, "Tinydefault_LSA_PFAS_RESULTS.RData"))
+
   
   
+  # Plot all
+  LSA_RESULTS <- do.call(rbind, LSA_PFAS_RESULTS)
+  LSA_RESULTS <- cbind(rownames(LSA_RESULTS), data.frame(LSA_RESULTS, row.names=NULL)) %>% 
+    separate("rownames(LSA_RESULTS)", sep = ".SF_", into = c("PFAS", "Parameter")) 
+  # %>% 
+  #   mutate(Parameter = paste0("SF_", Parameter))
   
-  Sns_summary <- summary(SnsPBK) %>% as.data.frame()
-  Snsplot <- Sns_summary %>% select(Mean) %>%
-    mutate(Parameter = rownames(Sns_summary)) %>%
+  
+  LSA_plot <- LSA_RESULTS %>% 
     # filter(Mean >= 0.1 | Mean <= -0.1) %>%  
-    mutate(Parameter = fct_reorder(Parameter, abs(Mean), .desc = TRUE)) %>%
-    ggplot(aes(x = Mean, y = Parameter)) +
+    # mutate(Parameter = fct_reorder(Parameter, abs(Mean), .desc = TRUE)) %>%
+    ggplot(aes(x = Mean, y = PFAS, fill = Parameter)) +
     geom_bar(stat = "identity") +
-    coord_flip() + # Flip coordinates for better readability if there are many parameters
-    labs(title = "Output: Plasma concentration", 
+    scale_fill_viridis(discrete = TRUE, option = "B", end = 0.9) +
+    coord_flip() +
+    facet_wrap(~ Parameter, scales = "free") + 
+    labs(title = "Default Tiny",
          x = "Mean sensitivity coefficient", 
-         y = "Parameter") +
+         y = "")   +
     CP_theme +
-    theme( axis.text.x = element_text(angle = 45, hjust = 1)  )
+    theme(legend.position = "none", 
+          axis.text.x = element_text(angle = 45, hjust = 1))
   
-  ggsave(plot = Snsplot,
-         file = "Snsplot.png",
+  ggsave(plot = LSA_plot,
+         file = here(OUTPUT, "DefaultTiny_LSA_plot.png"),
          dpi = 600,
-         width = 12,
-         height = 9,
+         width = 18,
+         height = 14,
          units = "cm")
   
- 
+  # nrow = 3, 
+  
