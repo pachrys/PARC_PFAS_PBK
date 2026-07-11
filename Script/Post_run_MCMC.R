@@ -74,8 +74,8 @@ theme_quick <- theme_minimal() +
   )
 
 # Set input and output directory
-INPUT <- here("Output", "MonteCarlo_1000_Abraham")
-OUTPUT <- here("Output","MonteCarlo_1000_Abraham_rerun", "SumResults") 
+INPUT <- here("Output", "MonteCarlo_1000_Abraham", "NotOnGit")
+OUTPUT <- here("Output","MonteCarlo_1000_Abraham", "SeventhJuly") 
 dir.create(OUTPUT, recursive = TRUE)
 
 Dose_df <- read_excel(here("Input","Evaluation_data.xlsx")) %>% 
@@ -172,7 +172,6 @@ calc_TK_results <- function(results, OD) {
   )
   )
 }
-
 calc_TK_summary_results <- function(raw_TK_results){
   
   Results_all <- do.call(rbind, raw_TK_results) |>
@@ -190,7 +189,6 @@ calc_TK_summary_results <- function(raw_TK_results){
   
   return(Results_all)
 }
-
 calc_C_summary <- function(C_df, Tissue){
   
   C_df <- C_df  |> select(time, Tissue, PFAS, Iteration)
@@ -215,7 +213,6 @@ calc_C_summary <- function(C_df, Tissue){
   
   return(C_summary)
 }
-
 plot_per_tissue <- function(C_sum){
   
   Tissue_i <- unique(C_sum$Tissue)
@@ -250,26 +247,27 @@ plot_all_tissues <- function(C_ts){
   
 }
 
-PFAS_list <- c(#"ADONA", 
-               #"HFPO-DA",
+PFAS_list <- c("ADONA", 
+               "HFPO-DA",
                "PFBA",
                "PFBS",
-                # "PFDA",
-                # "PFDoDA",
-                # "PFHpA",
+                "PFDA",
+                "PFDoDA",
+                "PFHpA",
                # "PFHpS",
                "PFHxA",
-               # "PFHxS",
-               # "PFNA",
-               # "PFOA",
-               # "PFOS",
-               "PFPeA"
+               "PFHxS",
+               "PFNA",
+               "PFOA",
+               "PFOS",
+               "PFPeA",
                # "PFPeS",
                # "PFTrDA",
-               # "PFUnDA"
+               "PFUnDA"
                )
 nPFAS <- length(PFAS_list)
 
+# produce result files and plots for all PFAS ----
 for (i in 1:nPFAS) {
   
   
@@ -402,3 +400,11 @@ for (i in 1:nPFAS) {
   
   
 }
+
+# run summary results ----
+# 
+# tbl <-
+#   list.files(path = here(INPUT), 
+#              pattern = "\\_TK_sumstat.csv$") 
+# 
+# tbl2 <- tbl |>   map_df(~ read_csv(file = here(INPUT, .)))
