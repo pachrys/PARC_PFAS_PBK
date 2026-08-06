@@ -54,8 +54,7 @@ CP_theme <- theme_minimal() +
     legend.background = element_rect(color = "black", fill = "white", linewidth = 0.1),
     legend.margin = margin(1, 1, 1, 1),
     
-    strip.text.x = element_blank()
-    # strip.text.x = element_text(size = 35)
+    strip.text.x = element_text(size = 35)
   )
 
 theme_quick <- theme_minimal() +
@@ -74,43 +73,55 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "MonteCarlo_1000_Abraham") #format(Sys.Date(), "%Y-%m-%d"), format(Sys.time(), "%H-%M-%S"))
+OUTPUT <- here("Output", "MonteCarlo_t") #format(Sys.Date(), "%Y-%m-%d"), format(Sys.time(), "%H-%M-%S"))
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
 
-## Dose
-Dose_df <- read_excel(here("Input","Evaluation_data.xlsx")) %>% 
+# Load data
+Abraham_df <- read_excel(here("Input","Evaluation_data.xlsx")) %>% 
   filter(Reference == "Abraham_2024") |> 
   select(!c(PFAS_name, CAS_n)) %>% 
   rename(PFAS = Acronym) |> 
-  mutate(Dose = round(Dose_ugPerkg_bw*82, 3)) |>  #82 is the body weight of Abraham
+  mutate(Dose = round(as.numeric(Dose_ugPerkg_bw)*82, 3)) |>  #82 is the body weight of Abraham
   select(PFAS, Dose) |> 
   mutate(PFAS = str_replace_all(PFAS, "_", "-")) |> 
   distinct()
 
 
-## PFAS
+## PFAS included in the test
 
-# PFAS_list <- c("ADONA",
-#                "HFPO-DA",
-#                "PFBA",
-#                "PFBS",
-#                "PFDA",
-#                "PFDoDA",
-#                "PFHpA",
-#                "PFHpS",
-#                "PFHxA",
-#                "PFHxS",
-#                "PFNA",
-#                "PFOA",
-#                "PFOS",
-#                "PFPeA",
-#                "PFPeS",
-#                "PFTrDA",
-#                "PFUnDA")
-PFAS_list <- Dose_df$PFAS
+PFAS_list <- c("ADONA",
+               "HFPO-DA",
+               "PFBA",
+               "PFBS",
+               "PFDA",
+               "PFDoDA",
+               "PFHpA",
+               "PFHpS",
+               "PFHxA",
+               "PFHxS",
+               "PFNA",
+               "PFOA",
+               "PFOS",
+               "PFPeA",
+               "PFPeS",
+               "PFTrDA",
+               "PFUnDA")
+
+# use the below line if comparing with Abraham
+# PFAS_list <- Dose_df$PFAS 
 nPFAS <- length(PFAS_list)
+
+## Dose
+Dose_df <- tibble(
+  PFAS = PFAS_list, 
+  Dose = 0.1
+)
+
+# use the below line if comparing with Abraham
+Dose_df <- Abraham_df
+
 
 ## Tissue constituents for partition coefficient calculation
 Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>% 
@@ -481,7 +492,8 @@ PBK.model <- function(t, state, pars){
            dAP,
            dAMp
     ), 
-    c(CIL = CIL,
+    c(MB = MB,
+      CIL = CIL,
       CI = CI, CVI = CVI,
       CL_ec = CL_ec,
       CL_ic = CL_ic,
@@ -497,7 +509,7 @@ PBK.model <- function(t, state, pars){
   })
 }
 
-# Create Monte Carlo function
+ # Create Monte Carlo function
 run_Monte_Carlo <- function(parm.MC, parm.phys, Dose_ug_day){
   
   A_init <- c(AIL = Dose_ug_day,
@@ -525,7 +537,7 @@ run_Monte_Carlo <- function(parm.MC, parm.phys, Dose_ug_day){
                    parms = pars)
   
   PBK_OUTPUT <- as.data.frame(PBK.out) %>% 
-    mutate(CP = ifelse(CP < 0-1000, 0, CP)) 
+    mutate(CP = ifelse(CP < 1e-9, 0, CP)) 
   
   PBK_OUTPUT <- cbind(PBK_OUTPUT, run_pars)
   
@@ -536,13 +548,13 @@ run_Monte_Carlo <- function(parm.MC, parm.phys, Dose_ug_day){
 Monte_Carlo_PFAS_design <- list()
 Monte_Carlo_PFAS_RESULTS <- list()
 Monte_Carlo_PFAS_y <- list()
-Monte_Carlo_PFAS_savey <- list()
+Monte_Carlo_PFAS_savey <- list()#
 
 for (i in 1:nPFAS) {
 
 
   
-  PFAS_i <- PFAS_list[i]#"PFOA" 
+  PFAS_i <- PFAS_list[1]#"PFOA" 
   message(glue("{PFAS_i}------------------------------------"))
   
   # physiological parameters; they are kept fix
@@ -591,9 +603,9 @@ for (i in 1:nPFAS) {
   
   dim(Experience$X) # dataframe of: n factors(number of parameters) * n n(1000) number of observations, of n factors(number of parameters) number of variables
   design <- Experience$X
-  write.csv(design, file = here(OUTPUT, paste0("_Initial_MC_ExpDesign.csv")), row.names = FALSE)
+  # write.csv(design, file = here(OUTPUT, paste0("_Initial_MC_ExpDesign.csv")), row.names = FALSE)
   
-  # check distributions
+  # check distributions if there are any Inf or NA values and if they sould be as expected
   design |> pivot_longer(everything(), 
                          names_to = "Parameter", 
                          values_to = "Value") |> 

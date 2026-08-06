@@ -76,8 +76,8 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "DeriveParameters") 
-# dir.create(OUTPUT, recursive = TRUE)
+OUTPUT <- here("Output", "QSPR_results") 
+dir.create(OUTPUT, recursive = TRUE)
 
 # Initialise ----
 
@@ -106,13 +106,13 @@ OECD_cat_list <- c("PFCAs", "PFSAs", "PFECAs")
 
 # Load in vitro and in silico input
 All_input_df <- read_excel(here("Input", "PFAS_database.xlsx"), 
-                    col_types = c("text", "text", "text", 
-                                  "text", "text", "text", "text", 
-                                  "text", "numeric", "numeric", "text", 
-                                  "text", "text", "text", "numeric", 
-                                  "text", "text", "text", "text", "text", 
-                                  "text", "numeric", "text", "text",  
-                                  "text", "text")) |> 
+                           col_types = c("text", "text", "text", 
+                                         "text", "text", "text", "text", "text", 
+                                         "text", "text", "numeric", "numeric", 
+                                         "text", "numeric", "text", "text", 
+                                         "text", "text", "text", "text", "numeric", 
+                                         "text", "text", "text", "text")
+                                ) |> 
   mutate(Value = signif(Value, 3),
          SD = signif(SD, 3))
 
@@ -160,7 +160,7 @@ Datab <- Datab_df %>%
          Reference) |> 
   rename(PFAS = Acronym)
 
-# Add the MW column for the QSAR
+# Add the MW column for the QSPR
 Datab <- full_join(Datab, MW_df)
 
 # Absorption ----
@@ -180,33 +180,42 @@ CleanPapp <- Datab %>%
   mutate(Value = Value * 60*60*24) |>  # unit conversion, cm/s to cm/dau
   mutate(SD = SD * 60*60*24)   # unit conversion, cm/s to cm/dau
 
-# GlimpsePapp <- CleanPapp |> ggplot(aes(x = MW, Value, 
-#            colour = Category_OECD, 
-#            shape = Specific)) +
-#   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
-#   geom_point() +
-#   geom_errorbar(aes(ymin = (Value - SD), 
-#                     ymax = (Value + SD)),
-#                 width = .2) + 
-#   labs(y = "Papp (cm/day)", 
-#        x = "MW (g/mol)") +
-#   theme_quick
-# GlimpsePapp
+GlimpsePapp <- CleanPapp |> ggplot(aes(x = MW, Value,
+           colour = Category_OECD,
+           shape = Specific)) +
+  scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
+  geom_point() +
+  geom_errorbar(aes(ymin = (Value - SD),
+                    ymax = (Value + SD)),
+                width = .2) +
+  labs(y = "Papp (cm/day)",
+       x = "MW (g/mol)") +
+  theme_quick
+GlimpsePapp
 # we can see in the graph that there is quite some variance between all these values
 # two values seem to be outliers for PFOS, cosmo perm and equilibrium dialysis
 
-# GlimpsePapp_log <- CleanPapp |> ggplot(aes(log(MW), log(Value), 
-#                                        colour = Category_OECD, 
-#                                        shape = Specific)) +
-#   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
-#   geom_point() +
-#   geom_errorbar(aes(ymin = log(Value - SD), 
-#                     ymax = log(Value + SD)),
-#                 width = .002) + 
-#   labs(y = "Papp ln(cm/day)", 
-#        x = "MW ln(g/mol)") +
-#   theme_quick
-# GlimpsePapp_log
+GlimpsePapp_log <- CleanPapp |> ggplot(aes(log(MW), log(Value),
+                                       colour = Category_OECD,
+                                       shape = Specific)) +
+  scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
+  scale_shape_manual(values = c(15, 16, 17, 18, 3, 10, 8)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = log(Value - SD),
+                    ymax = log(Value + SD)),
+                width = .002) +
+  labs(y = "Papp ln(cm/day)",
+       x = "MW ln(g/mol)") +
+  theme_quick
+GlimpsePapp_log
+GlimpsePapp_log <- GlimpsePapp_log + CP_theme
+
+ggsave(plot = GlimpsePapp_log,
+       file = here(OUTPUT, "Papp_withCOSMOperm.png"),
+       dpi = 600,
+       width = 12,
+       height = 9,
+       units = "cm")
 # the Papp values derived using COSMOperm seem to not follow the same trend as those derived in vitro so I will remove those
 
 # remove the two COSMOperm values
@@ -244,8 +253,8 @@ CleanPapp <- CleanPapp |> filter(Specific != "ionic__COSMOperm")
 #        x = "MW ln(g/mol)") +
 #   theme_quick
 # GlimpsePapp_log
-# These are the final values to be included for the Papp QSAR
-# QSAR to be done in log-log scale
+# These are the final values to be included for the Papp QSPR
+# QSPR to be done in log-log scale
 # GlimpsePapp_log <- GlimpsePapp_log + CP_theme
 # ggsave(plot = GlimpsePapp_log, 
 #        file = here(OUTPUT, "Papp_log.png"),
@@ -254,24 +263,24 @@ CleanPapp <- CleanPapp |> filter(Specific != "ionic__COSMOperm")
 #        height = 9,
 #        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanPapp)
 
-QSAR_CleanPapp <- CleanPapp |> 
+QSPR_CleanPapp <- CleanPapp |> 
   mutate(Value = log(Value), 
          MW = log(MW))
 
 PFAS_MW_list <- MW_df$MW
 PFAS_MW_list_log <- log(MW_df$MW)
 
-y = QSAR_CleanPapp$Value
-x = QSAR_CleanPapp$MW
+y = QSPR_CleanPapp$Value
+x = QSPR_CleanPapp$MW
 data <- tibble(x = x, y = y)
 
 
 fit_Papp <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                  data = data,
-                 start = list(Const = min(QSAR_CleanPapp$Value),
+                 start = list(Const = min(QSPR_CleanPapp$Value),
                               Asym = -2.8772,
                               xmid = 6.0187 ,
                               scal = -0.1451),
@@ -317,10 +326,10 @@ observed_Papp <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_CleanPapp2 <- QSAR_CleanPapp |> 
+QSPR_CleanPapp2 <- QSPR_CleanPapp |> 
   mutate(nValue = exp(Value))
 
-QSAR_Papp_plot <- QSAR_CleanPapp2 |> ggplot() +
+QSPR_Papp_plot <- QSPR_CleanPapp2 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -331,8 +340,7 @@ QSAR_Papp_plot <- QSAR_CleanPapp2 |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR Papp",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                          ", const: ", Const,
                          ", asym: ", Asym,
                          ", xmid: ", xmid,
@@ -341,14 +349,14 @@ QSAR_Papp_plot <- QSAR_CleanPapp2 |> ggplot() +
        x = "MW ln(g/mol)") +
   theme_quick
 
-D <- QSAR_Papp_plot + CP_theme
+D <- QSPR_Papp_plot + CP_theme
 R <- Residuals_Papp_plot + CP_theme
 
-QSAR_Papp_plots <- D / R + 
+QSPR_Papp_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_Papp_plots,
-       file = here(OUTPUT, "QSAR_Papp_plots.png"),
+ggsave(plot = QSPR_Papp_plots,
+       file = here(OUTPUT, "QSPR_Papp_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -425,7 +433,7 @@ SDTransport <- CleanTransport |> select(!Mean) |>
 # OAT4: PFBS
 # OAT3: PFBS, PFOS
 # OAT1: PFBS, PFHxS, PFOS, PFNA
-# To exclude from QSAR
+# To exclude from QSPR
 
 CleanTransport <- full_join(MeanTransport, SDTransport) |> 
   separate(Specific, into = c("Delete", "Specific")) |> 
@@ -535,15 +543,15 @@ Clean2Transport <- full_join(Mean2Transport, SD2Transport)
 
 
 ## CL_OATP2B1 ----
-QSAR_OATP2B1 <- Clean2Transport |>
+QSPR_OATP2B1 <- Clean2Transport |>
   filter(Transporter == "OATP2B1", 
          Parameter == "CL")
 
 rm(x)
 rm(y)
 rm(data)
-y = QSAR_OATP2B1$Value
-x = QSAR_OATP2B1$MW
+y = QSPR_OATP2B1$Value
+x = QSPR_OATP2B1$MW
 data <- tibble(x = x, y = y)
 
 fit_OATP2B1 <- lm(y ~ x, data = data)
@@ -589,7 +597,7 @@ observed_OATP2B1 <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_OATP2B1_plot <- QSAR_OATP2B1 |> ggplot() +
+QSPR_OATP2B1_plot <- QSPR_OATP2B1 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -600,23 +608,22 @@ QSAR_OATP2B1_plot <- QSAR_OATP2B1 |> ggplot() +
                 width = .2) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR OATP2B1",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", RSE: ", RSE,
                         ", R.squared: ", R.squared,
                         ", Intercept: ", Intercept),
        y = "OATP2B1 clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_OATP2B1_plot
-D <- QSAR_OATP2B1_plot + CP_theme
+QSPR_OATP2B1_plot
+D <- QSPR_OATP2B1_plot + CP_theme
 R <- Residuals_OATP2B1_plot + CP_theme
 
-QSAR_OATP2B1_plots <- D / R + 
+QSPR_OATP2B1_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_OATP2B1_plots,
-       file = here(OUTPUT, "QSAR_OATP2B1_plots.png"),
+ggsave(plot = QSPR_OATP2B1_plots,
+       file = here(OUTPUT, "QSPR_OATP2B1_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -645,7 +652,7 @@ collect_OATP2B1 <- predicted_OATP2B1 |>
 predicted_OATP2B1 <- full_join(collect_OATP2B1, MW_df)
 
 # merge dataframes
-QSAR_OATP2B1 <- QSAR_OATP2B1 |> 
+QSPR_OATP2B1 <- QSPR_OATP2B1 |> 
   mutate(Parameter = "CL_OATP2B1c",
          Distribution = "uniform", 
          Distribution_comment = NA, 
@@ -653,20 +660,20 @@ QSAR_OATP2B1 <- QSAR_OATP2B1 |>
   select(!Transporter)
 
 # Final dataframe
-FinalOATP2B1 <- full_join(QSAR_OATP2B1, predicted_OATP2B1) 
+FinalOATP2B1 <- full_join(QSPR_OATP2B1, predicted_OATP2B1) 
 
 
 ## CL_OATP1B1 ----
 
-QSAR_OATP1B1 <- Clean2Transport |>
+QSPR_OATP1B1 <- Clean2Transport |>
   filter(Transporter == "OATP1B1", 
          Parameter == "CL")
 
 rm(x)
 rm(y)
 rm(data)
-y = QSAR_OATP1B1$Value
-x = QSAR_OATP1B1$MW
+y = QSPR_OATP1B1$Value
+x = QSPR_OATP1B1$MW
 data <- tibble(x = x, y = y)
 
 fit_OATP1B1 <- lm(y ~ x, data = data)
@@ -712,7 +719,7 @@ observed_OATP1B1 <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_OATP1B1_plot <- QSAR_OATP1B1 |> ggplot() +
+QSPR_OATP1B1_plot <- QSPR_OATP1B1 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -723,23 +730,22 @@ QSAR_OATP1B1_plot <- QSAR_OATP1B1 |> ggplot() +
                 width = .2) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR OATP1B1",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", RSE: ", RSE,
                         ", R.squared: ", R.squared,
                         ", Intercept: ", Intercept),
        y = "OATP1B1 clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_OATP1B1_plot
-D <- QSAR_OATP1B1_plot + CP_theme
+QSPR_OATP1B1_plot
+D <- QSPR_OATP1B1_plot + CP_theme
 R <- Residuals_OATP1B1_plot + CP_theme
 
-QSAR_OATP1B1_plots <- D / R + 
+QSPR_OATP1B1_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_OATP1B1_plots,
-       file = here(OUTPUT, "QSAR_OATP1B1_plots.png"),
+ggsave(plot = QSPR_OATP1B1_plots,
+       file = here(OUTPUT, "QSPR_OATP1B1_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -767,7 +773,7 @@ collect_OATP1B1 <- predicted_OATP1B1 |>
 predicted_OATP1B1 <- full_join(collect_OATP1B1, MW_df)
 
 # merge dataframes
-QSAR_OATP1B1 <- QSAR_OATP1B1 |> 
+QSPR_OATP1B1 <- QSPR_OATP1B1 |> 
   mutate(Parameter = "CL_OATP1B1c",
          Distribution = "uniform", 
          Distribution_comment = NA, 
@@ -775,22 +781,22 @@ QSAR_OATP1B1 <- QSAR_OATP1B1 |>
   select(!Transporter)
 
 # Final dataframe
-FinalOATP1B1 <- full_join(QSAR_OATP1B1, predicted_OATP1B1)
+FinalOATP1B1 <- full_join(QSPR_OATP1B1, predicted_OATP1B1)
 
 
 
 
 ## CL_OATP1B3 ----
 
-QSAR_OATP1B3 <- Clean2Transport |>
+QSPR_OATP1B3 <- Clean2Transport |>
   filter(Transporter == "OATP1B3", 
          Parameter == "CL")
 
 rm(x)
 rm(y)
 rm(data)
-y = QSAR_OATP1B3$Value
-x = QSAR_OATP1B3$MW
+y = QSPR_OATP1B3$Value
+x = QSPR_OATP1B3$MW
 data <- tibble(x = x, y = y)
 
 fit_OATP1B3 <- lm(y ~ x, data = data)
@@ -836,7 +842,7 @@ observed_OATP1B3 <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_OATP1B3_plot <- QSAR_OATP1B3 |> ggplot() +
+QSPR_OATP1B3_plot <- QSPR_OATP1B3 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -847,23 +853,22 @@ QSAR_OATP1B3_plot <- QSAR_OATP1B3 |> ggplot() +
                 width = .2) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR OATP1B3",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", RSE: ", RSE,
                         ", R.squared: ", R.squared,
                         ", Intercept: ", Intercept),
        y = "OATP1B3 clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_OATP1B3_plot
-D <- QSAR_OATP1B3_plot + CP_theme
+QSPR_OATP1B3_plot
+D <- QSPR_OATP1B3_plot + CP_theme
 R <- Residuals_OATP1B3_plot + CP_theme
 
-QSAR_OATP1B3_plots <- D / R + 
+QSPR_OATP1B3_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_OATP1B3_plots,
-       file = here(OUTPUT, "QSAR_OATP1B3_plots.png"),
+ggsave(plot = QSPR_OATP1B3_plots,
+       file = here(OUTPUT, "QSPR_OATP1B3_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -917,7 +922,7 @@ observed_OATP1B3 <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_OATP1B3_nls_plot <- QSAR_OATP1B3 |> ggplot() +
+QSPR_OATP1B3_nls_plot <- QSPR_OATP1B3 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -928,8 +933,7 @@ QSAR_OATP1B3_nls_plot <- QSAR_OATP1B3 |> ggplot() +
   #               width = .2) +
   geom_path(data = predicted_nls, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted_nls, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR OATP1B3",       
-       caption = paste0("Formula: ", Formula_nls, 
+  labs(caption = paste0("Formula: ", Formula_nls, 
                         ", const: ", Const_nls,
                         ", asym: ", Asym_nls,
                         ", xmid: ", xmid_nls,
@@ -937,15 +941,15 @@ QSAR_OATP1B3_nls_plot <- QSAR_OATP1B3 |> ggplot() +
        y = "OATP1B3 clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_OATP1B3_nls_plot
-D <- QSAR_OATP1B3_nls_plot + CP_theme
+QSPR_OATP1B3_nls_plot
+D <- QSPR_OATP1B3_nls_plot + CP_theme
 R <- Residuals_OATP1B3_nls_plot + CP_theme
 
-QSAR_OATP1B3_nls_plots <- D / R + 
+QSPR_OATP1B3_nls_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_OATP1B3_nls_plots,
-       file = here(OUTPUT, "QSAR_OATP1B3_nls_plots.png"),
+ggsave(plot = QSPR_OATP1B3_nls_plots,
+       file = here(OUTPUT, "QSPR_OATP1B3_nls_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -1006,7 +1010,7 @@ predicted_OATP1B3 <- rbind(predicted_OATP1B3, predicted_OATP1B3_nls) |>
         Specific, Model, sep = "_")
 
 # merge dataframes
-QSAR_OATP1B3 <- QSAR_OATP1B3 |> 
+QSPR_OATP1B3 <- QSPR_OATP1B3 |> 
   mutate(Parameter = "CL_OATP1B3c",
          Distribution = "uniform", 
          Distribution_comment = NA, 
@@ -1015,20 +1019,20 @@ QSAR_OATP1B3 <- QSAR_OATP1B3 |>
 
 
 # Final dataframe
-FinalOATP1B3 <- full_join(QSAR_OATP1B3, predicted_OATP1B3)
+FinalOATP1B3 <- full_join(QSPR_OATP1B3, predicted_OATP1B3)
 
 
 ## CL_NTCP ----
 
-QSAR_NTCP <- Clean2Transport |>
+QSPR_NTCP <- Clean2Transport |>
   filter(Transporter == "NTCP", 
          Parameter == "CL")
 
 rm(x)
 rm(y)
 rm(data)
-y = QSAR_NTCP$Value
-x = QSAR_NTCP$MW
+y = QSPR_NTCP$Value
+x = QSPR_NTCP$MW
 data <- tibble(x = x, y = y)
 
 fit_NTCP <- lm(y ~ x, data = data)
@@ -1074,7 +1078,7 @@ observed_NTCP <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_NTCP_plot <- QSAR_NTCP |> ggplot() +
+QSPR_NTCP_plot <- QSPR_NTCP |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -1085,23 +1089,22 @@ QSAR_NTCP_plot <- QSAR_NTCP |> ggplot() +
                   width = .2) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR NTCP",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", RSE: ", RSE,
                         ", R.squared: ", R.squared,
                         ", Intercept: ", Intercept),
        y = "NTCP clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_NTCP_plot
-D <- QSAR_NTCP_plot + CP_theme
+QSPR_NTCP_plot
+D <- QSPR_NTCP_plot + CP_theme
 R <- Residuals_NTCP_plot + CP_theme
 
-QSAR_NTCP_plots <- D / R + 
+QSPR_NTCP_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_NTCP_plots,
-       file = here(OUTPUT, "QSAR_NTCP_plots.png"),
+ggsave(plot = QSPR_NTCP_plots,
+       file = here(OUTPUT, "QSPR_NTCP_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -1129,7 +1132,7 @@ collect_NTCP <- predicted_NTCP |>
 predicted_NTCP <- full_join(collect_NTCP, MW_df)
 
 # merge dataframes
-QSAR_NTCP <- QSAR_NTCP |> 
+QSPR_NTCP <- QSPR_NTCP |> 
   mutate(Parameter = "CL_NTCPc",
          Distribution = "uniform", 
          Distribution_comment = NA, 
@@ -1137,7 +1140,7 @@ QSAR_NTCP <- QSAR_NTCP |>
   select(!Transporter)
 
 # Final dataframe
-FinalNTCP <- full_join(QSAR_NTCP, predicted_NTCP)
+FinalNTCP <- full_join(QSPR_NTCP, predicted_NTCP)
 
 
 
@@ -1191,15 +1194,15 @@ FinalOAT3 <- full_join(OAT3_df, Pred_OAT3)
 
 ## CL_OAT4 ----
 
-QSAR_OAT4 <- Clean2Transport |>
+QSPR_OAT4 <- Clean2Transport |>
   filter(Transporter == "OAT4", 
          Parameter == "CL")
 
 rm(x)
 rm(y)
 rm(data)
-y = QSAR_OAT4$Value
-x = QSAR_OAT4$MW
+y = QSPR_OAT4$Value
+x = QSPR_OAT4$MW
 data <- tibble(x = x, y = y)
 
 # 
@@ -1209,7 +1212,7 @@ data <- tibble(x = x, y = y)
 
 fit_OAT4 <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                 data = data,
-                start = list(Const = min(QSAR_OAT4$Value),
+                start = list(Const = min(QSPR_OAT4$Value),
                              Asym = 0.1682 ,
                              xmid = 346.0462  ,
                              scal = 42.9345 ),
@@ -1262,7 +1265,7 @@ observed_OAT4 <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_OAT4_plot <- QSAR_OAT4 |> ggplot() +
+QSPR_OAT4_plot <- QSPR_OAT4 |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -1273,23 +1276,22 @@ QSAR_OAT4_plot <- QSAR_OAT4 |> ggplot() +
                 width = .2) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR OAT4",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", RSE: ", RSE,
                         ", R.squared: ", R.squared,
                         ", Intercept: ", Intercept),
        y = "OAT4 clearance (L/day/mg protein)", 
        x = "MW (g/mol)") +
   theme_quick
-QSAR_OAT4_plot
-D <- QSAR_OAT4_plot + CP_theme
+QSPR_OAT4_plot
+D <- QSPR_OAT4_plot + CP_theme
 R <- Residuals_OAT4_plot + CP_theme
 
-QSAR_OAT4_plots <- D / R + 
+QSPR_OAT4_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_OAT4_plots,
-       file = here(OUTPUT, "QSAR_OAT4_plots.png"),
+ggsave(plot = QSPR_OAT4_plots,
+       file = here(OUTPUT, "QSPR_OAT4_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -1317,7 +1319,7 @@ collect_OAT4 <- predicted_OAT4 |>
 predicted_OAT4 <- full_join(collect_OAT4, MW_df)
 
 # merge dataframes
-QSAR_OAT4 <- QSAR_OAT4 |> 
+QSPR_OAT4 <- QSPR_OAT4 |> 
   mutate(Parameter = "CL_OAT4c",
          Distribution = "uniform", 
          Distribution_comment = NA, 
@@ -1325,12 +1327,13 @@ QSAR_OAT4 <- QSAR_OAT4 |>
   select(!Transporter)
 
 # Final dataframe
-FinalOAT4 <- full_join(QSAR_OAT4, predicted_OAT4)
+FinalOAT4 <- full_join(QSPR_OAT4, predicted_OAT4)
 
 ## CL_BSEP ----
-Vmax_BSEP <- mean(c(5.8*60*24, 7*60*24, 8.4*60*24))                            # umol/min->day/mg BSEP, Average active transport of bile acids, assuming that the maximum velocity of PFOA transport by BSEP corresponds to that of bile acids ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011 
+Vmax_BSEP <- mean(c(5.8*60*24, 7*60*24, 8.4*60*24))                             # umol/min->day/mg BSEP, Average active transport of bile acids, assuming that the maximum velocity of PFOA transport by BSEP corresponds to that of bile acids ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011 
 SD_Vmax_BSEP <- sd(c(5.8*60*24, 7*60*24, 8.4*60*24))
-Km_BSEP <- mean(c(4.3, 25.9, 19))                            # umol/L, uM, Average affinity constant of bile acids to BSEP, following the above assumption ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
+
+Km_BSEP <- mean(c(4.3, 25.9, 19))                                               # umol/L, uM, Average affinity constant of bile acids to BSEP, following the above assumption ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
 SD_Km_BSEP <- sd(c(4.3, 25.9, 19))
 
 CL_BSEP <- Vmax_BSEP/Km_BSEP
@@ -1561,19 +1564,19 @@ ggsave(plot = GlimpseAlbumin,
        height = 9,
        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanAlbumin)
 
-QSAR_CleanAlbumin <- CleanAlbumin |> 
+QSPR_CleanAlbumin <- CleanAlbumin |> 
   mutate(MW = log(MW)) # to log as values are also in log scale
 
-y = QSAR_CleanAlbumin$Value
-x = QSAR_CleanAlbumin$MW
+y = QSPR_CleanAlbumin$Value
+x = QSPR_CleanAlbumin$MW
 data <- tibble(x = x, y = y)
 
 fit_Albumin <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                 data = data,
-                start = list(Const = min(QSAR_CleanAlbumin$Value),
+                start = list(Const = min(QSPR_CleanAlbumin$Value),
                              Asym = 12.1127,
                              xmid = 5.5517  ,
                              scal = 0.3041 ),
@@ -1620,11 +1623,11 @@ observed_Albumin <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_CleanAlbumin2 <- QSAR_CleanAlbumin |> 
+QSPR_CleanAlbumin2 <- QSPR_CleanAlbumin |> 
   mutate(nValue = exp(Value), 
          nSD = exp(SD))
 
-QSAR_Albumin_plot <- QSAR_CleanAlbumin |> ggplot() +
+QSPR_Albumin_plot <- QSPR_CleanAlbumin |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -1635,25 +1638,24 @@ QSAR_Albumin_plot <- QSAR_CleanAlbumin |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR Albumin",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", const: ", Const,
                         ", asym: ", Asym,
                         ", xmid: ", xmid,
                         ", scal: ", scal),
-       y = "Albumin ln(cm/day)", 
+       y = "ln(D_albumin/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_Albumin_plot
+QSPR_Albumin_plot
 
-D <- QSAR_Albumin_plot + CP_theme
+D <- QSPR_Albumin_plot + CP_theme
 R <- Residuals_Albumin_plot + CP_theme
 
-QSAR_Albumin_plots <- D / R + 
+QSPR_Albumin_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_Albumin_plots,
-       file = here(OUTPUT, "QSAR_Albumin_plots.png"),
+ggsave(plot = QSPR_Albumin_plots,
+       file = here(OUTPUT, "QSPR_Albumin_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -1714,19 +1716,19 @@ ggsave(plot = GlimpseGlobulin,
        height = 9,
        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanGlobulin)
 
-QSAR_CleanGlobulin <- CleanGlobulin |> 
+QSPR_CleanGlobulin <- CleanGlobulin |> 
   mutate(MW = log(MW)) # to log as values are also in log scale
 
-y = QSAR_CleanGlobulin$Value
-x = QSAR_CleanGlobulin$MW
+y = QSPR_CleanGlobulin$Value
+x = QSPR_CleanGlobulin$MW
 data <- tibble(x = x, y = y)
 
 fit_Globulin <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                    data = data,
-                   start = list(Const = min(QSAR_CleanGlobulin$Value),
+                   start = list(Const = min(QSPR_CleanGlobulin$Value),
                                 Asym = 33.7336,
                                 xmid = 6.8628,
                                 scal = 0.5285),
@@ -1758,8 +1760,8 @@ Residuals_Globulin_plot <- ggplot(Residuals_Globulin) +
 Residuals_Globulin_plot
 
 predicted <- tibble(
-  MW = seq(2.4, max(PFAS_MW_list_log), by = 0.000001),
-  predicted_y = predict(fit_Globulin, list(x = seq(2.4, max(PFAS_MW_list_log), by = 0.000001))),
+  MW = seq(min(PFAS_MW_list_log), max(PFAS_MW_list_log), by = 0.000001),
+  predicted_y = predict(fit_Globulin, list(x = seq(min(PFAS_MW_list_log), max(PFAS_MW_list_log), by = 0.000001))),
   min = predicted_y - RSE, 
   max = predicted_y + RSE
 ) %>% arrange(MW)
@@ -1773,11 +1775,11 @@ observed_Globulin <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_CleanGlobulin2 <- QSAR_CleanGlobulin |> 
+QSPR_CleanGlobulin2 <- QSPR_CleanGlobulin |> 
   mutate(nValue = exp(Value), 
          nSD = exp(SD))
 
-QSAR_Globulin_plot <- QSAR_CleanGlobulin |> ggplot() +
+QSPR_Globulin_plot <- QSPR_CleanGlobulin |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -1788,25 +1790,25 @@ QSAR_Globulin_plot <- QSAR_CleanGlobulin |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR Globulin",
+  labs(title = "QSPR Globulin",
        caption = paste0("Formula: ", Formula, 
                         ", const: ", Const,
                         ", asym: ", Asym,
                         ", xmid: ", xmid,
                         ", scal: ", scal),
-       y = "Globulin ln(cm/day)", 
+       y = "ln(D_globulin/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_Globulin_plot
+QSPR_Globulin_plot
 
-D <- QSAR_Globulin_plot + CP_theme
+D <- QSPR_Globulin_plot + CP_theme
 R <- Residuals_Globulin_plot + CP_theme
 
-QSAR_Globulin_plots <- D / R + 
+QSPR_Globulin_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_Globulin_plots,
-       file = here(OUTPUT, "QSAR_Globulin_plots.png"),
+ggsave(plot = QSPR_Globulin_plots,
+       file = here(OUTPUT, "QSPR_Globulin_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -1867,19 +1869,19 @@ ggsave(plot = GlimpseStructuralProtein,
        height = 9,
        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanStructuralProtein)
 
-QSAR_CleanStructuralProtein <- CleanStructuralProtein |> 
+QSPR_CleanStructuralProtein <- CleanStructuralProtein |> 
   mutate(MW = log(MW)) # to log as values are also in log scale
 
-y = QSAR_CleanStructuralProtein$Value
-x = QSAR_CleanStructuralProtein$MW
+y = QSPR_CleanStructuralProtein$Value
+x = QSPR_CleanStructuralProtein$MW
 data <- tibble(x = x, y = y)
 
 fit_StructuralProtein <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                    data = data,
-                   start = list(Const = min(QSAR_CleanStructuralProtein$Value),
+                   start = list(Const = min(QSPR_CleanStructuralProtein$Value),
                                 Asym = 12.7597,
                                 xmid = 6.2135,
                                 scal = 0.2395),
@@ -1926,11 +1928,11 @@ observed_StructuralProtein <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_CleanStructuralProtein2 <- QSAR_CleanStructuralProtein |> 
+QSPR_CleanStructuralProtein2 <- QSPR_CleanStructuralProtein |> 
   mutate(nValue = exp(Value), 
          nSD = exp(SD))
 
-QSAR_StructuralProtein_plot <- QSAR_CleanStructuralProtein |> ggplot() +
+QSPR_StructuralProtein_plot <- QSPR_CleanStructuralProtein |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -1941,25 +1943,24 @@ QSAR_StructuralProtein_plot <- QSAR_CleanStructuralProtein |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR StructuralProtein",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", const: ", Const,
                         ", asym: ", Asym,
                         ", xmid: ", xmid,
                         ", scal: ", scal),
-       y = "StructuralProtein ln(cm/day)", 
+       y = "ln(D_structural protein/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_StructuralProtein_plot
+QSPR_StructuralProtein_plot
 
-D <- QSAR_StructuralProtein_plot + CP_theme
+D <- QSPR_StructuralProtein_plot + CP_theme
 R <- Residuals_StructuralProtein_plot + CP_theme
 
-QSAR_StructuralProtein_plots <- D / R + 
+QSPR_StructuralProtein_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_StructuralProtein_plots,
-       file = here(OUTPUT, "QSAR_StructuralProtein_plots.png"),
+ggsave(plot = QSPR_StructuralProtein_plots,
+       file = here(OUTPUT, "QSPR_StructuralProtein_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -2020,19 +2021,19 @@ ggsave(plot = GlimpseStorageLipid,
        height = 9,
        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanStorageLipid)
 
-QSAR_CleanStorageLipid <- CleanStorageLipid |> 
+QSPR_CleanStorageLipid <- CleanStorageLipid |> 
   mutate(MW = log(MW)) # to log as values are also in log scale
 
-y = QSAR_CleanStorageLipid$Value
-x = QSAR_CleanStorageLipid$MW
+y = QSPR_CleanStorageLipid$Value
+x = QSPR_CleanStorageLipid$MW
 data <- tibble(x = x, y = y)
 
 fit_StorageLipid <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                    data = data,
-                   start = list(Const = min(QSAR_CleanStorageLipid$Value),
+                   start = list(Const = min(QSPR_CleanStorageLipid$Value),
                                 Asym = -3.2391,
                                 xmid = 6.1866,
                                 scal = -0.1057 ),
@@ -2079,11 +2080,11 @@ observed_StorageLipid <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_CleanStorageLipid2 <- QSAR_CleanStorageLipid |> 
+QSPR_CleanStorageLipid2 <- QSPR_CleanStorageLipid |> 
   mutate(nValue = exp(Value), 
          nSD = exp(SD))
 
-QSAR_StorageLipid_plot <- QSAR_CleanStorageLipid |> ggplot() +
+QSPR_StorageLipid_plot <- QSPR_CleanStorageLipid |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -2094,25 +2095,24 @@ QSAR_StorageLipid_plot <- QSAR_CleanStorageLipid |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR StorageLipid",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", const: ", Const,
                         ", asym: ", Asym,
                         ", xmid: ", xmid,
                         ", scal: ", scal),
-       y = "StorageLipid ln(cm/day)", 
+       y = "ln(D_storage lipid/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_StorageLipid_plot
+QSPR_StorageLipid_plot
 
-D <- QSAR_StorageLipid_plot + CP_theme
+D <- QSPR_StorageLipid_plot + CP_theme
 R <- Residuals_StorageLipid_plot + CP_theme
 
-QSAR_StorageLipid_plots <- D / R + 
+QSPR_StorageLipid_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_StorageLipid_plots,
-       file = here(OUTPUT, "QSAR_StorageLipid_plots.png"),
+ggsave(plot = QSPR_StorageLipid_plots,
+       file = here(OUTPUT, "QSPR_StorageLipid_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -2174,14 +2174,14 @@ ggsave(plot = GlimpseMembraneLipid,
        height = 9,
        units = "cm")
 
-# QSAR
+# QSPR
 glimpse(CleanMembraneLipid)
 
-QSAR_CleanMembraneLipid <- CleanMembraneLipid |> 
+QSPR_CleanMembraneLipid <- CleanMembraneLipid |> 
   mutate(MW = log(MW)) # to log as values are also in log scale
 
-y = QSAR_CleanMembraneLipid$Value
-x = QSAR_CleanMembraneLipid$MW
+y = QSPR_CleanMembraneLipid$Value
+x = QSPR_CleanMembraneLipid$MW
 data <- tibble(x = x, y = y)
 
 fit <- nls(y ~ SSlogis(x, Asym, xmid, scal),
@@ -2190,7 +2190,7 @@ fit <- nls(y ~ SSlogis(x, Asym, xmid, scal),
 
 fit_MembraneLipid <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
                    data = data,
-                   start = list(Const = min(QSAR_CleanMembraneLipid$Value),
+                   start = list(Const = min(QSPR_CleanMembraneLipid$Value),
                                 Asym = 29.4370 ,
                                 xmid = 6.6275 ,
                                 scal = 0.6137 ),
@@ -2237,7 +2237,7 @@ observed_MembraneLipid <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_MembraneLipid_plot <- QSAR_CleanMembraneLipid |> ggplot() +
+QSPR_MembraneLipid_plot <- QSPR_CleanMembraneLipid |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.5) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -2248,25 +2248,24 @@ QSAR_MembraneLipid_plot <- QSAR_CleanMembraneLipid |> ggplot() +
                 width = .002) +
   geom_path(data = predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR MembraneLipid",
-       caption = paste0("Formula: ", Formula, 
+  labs(caption = paste0("Formula: ", Formula, 
                         ", const: ", Const,
                         ", asym: ", Asym,
                         ", xmid: ", xmid,
                         ", scal: ", scal),
-       y = "MembraneLipid ln(cm/day)", 
+       y = "ln(D_membrane lipid/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_MembraneLipid_plot
+QSPR_MembraneLipid_plot
 
-D <- QSAR_MembraneLipid_plot + CP_theme
+D <- QSPR_MembraneLipid_plot + CP_theme
 R <- Residuals_MembraneLipid_plot + CP_theme
 
-QSAR_MembraneLipid_plots <- D / R + 
+QSPR_MembraneLipid_plots <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_MembraneLipid_plots,
-       file = here(OUTPUT, "QSAR_MembraneLipid_plots.png"),
+ggsave(plot = QSPR_MembraneLipid_plots,
+       file = here(OUTPUT, "QSPR_MembraneLipid_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -2305,16 +2304,17 @@ CleanMembraneLipid <- CleanMembraneLipid |>
 # Final dataframe
 InitialMembraneLipid <- full_join(CleanMembraneLipid, convert_MembraneLipid) |>
   mutate(method = "PFCAs")
+CleanInitialMembraneLipid <- InitialMembraneLipid |> filter(Category_OECD != "PFSAs")
 
 ### PFSAs ----
 
 CleanMembraneLipid <- Distribution %>%
   filter(Parameter == "logD_MembraneLipidWater", 
          Category_OECD == "PFSAs")
-QSAR_CleanMembraneLipid <- CleanMembraneLipid |> mutate(MW = log(MW))
+QSPR_CleanMembraneLipid <- CleanMembraneLipid |> mutate(MW = log(MW))
 
-y = QSAR_CleanMembraneLipid$Value 
-x = QSAR_CleanMembraneLipid$MW
+y = QSPR_CleanMembraneLipid$Value 
+x = QSPR_CleanMembraneLipid$MW
 data <- tibble(x = x, y = y)
 
 PFSAsfit_MembraneLipid <- nls(y ~ 3.95 + 7.46/(1+exp((xmid-x)/0.135)),
@@ -2360,7 +2360,7 @@ observed_MembraneLipid <- data %>%
   mutate(MW = x, Value = y) |> 
   arrange(MW)
 
-QSAR_PFSAs_MembraneLipid_plot <- QSAR_CleanMembraneLipid |> ggplot() +
+QSPR_PFSAs_MembraneLipid_plot <- QSPR_CleanMembraneLipid |> ggplot() +
   scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
   geom_point(aes(MW, Value, 
                  colour = Category_OECD)) +
@@ -2371,22 +2371,21 @@ QSAR_PFSAs_MembraneLipid_plot <- QSAR_CleanMembraneLipid |> ggplot() +
                 width = .002) +
   geom_path(data = PFSAs_predicted, aes(MW, predicted_y)) +
   geom_ribbon(data = PFSAs_predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
-  labs(title = "QSAR MembraneLipid",
-       caption = paste0("Formula: ", PFSA_Formula, 
+  labs(caption = paste0("Formula: ", PFSA_Formula, 
                         ", xmid: ", PFSA_xmid),
-       y = "MembraneLipid ln(cm/day)", 
+       y = "ln(D_membrane lipid/water)", 
        x = "MW ln(g/mol)") +
   theme_quick
-QSAR_PFSAs_MembraneLipid_plot
+QSPR_PFSAs_MembraneLipid_plot
 
-D <- QSAR_PFSAs_MembraneLipid_plot + CP_theme
+D <- QSPR_PFSAs_MembraneLipid_plot + CP_theme
 R <- ResidualsPFSA_MembraneLipid_plot + CP_theme
 
-QSAR_PFSAs_MembraneLipid_plot <- D / R + 
+QSPR_PFSAs_MembraneLipid_plot <- D / R + 
   plot_layout(heights = c(5,1))
 
-ggsave(plot = QSAR_PFSAs_MembraneLipid_plot,
-       file = here(OUTPUT, "QSAR_PFSAs_MembraneLipid_plots.png"),
+ggsave(plot = QSPR_PFSAs_MembraneLipid_plot,
+       file = here(OUTPUT, "QSPR_PFSAs_MembraneLipid_plots.png"),
        dpi = 600,
        width = 12,
        height = 12,
@@ -2421,15 +2420,14 @@ CleanMembraneLipid <- CleanMembraneLipid |>
          SD_comment = "NA") |> 
   select(!Title)
 
-PFSAs_FinalMembraneLipid <- full_join(CleanMembraneLipid, convert_MembraneLipid) |> 
+PFSAs_FinalMembraneLipid <- full_join(CleanMembraneLipid, PFSAs_convert_MembraneLipid) |> 
   mutate(method = "PFSAs")
+CleanPFSAs_FinalMembraneLipid <- PFSAs_FinalMembraneLipid |> 
+  filter(Category_OECD == "PFSAs")
 
-FinalMembraneLipid <- rbind(InitialMembraneLipid, PFSAs_FinalMembraneLipid) |> 
-  mutate(Keep = ifelse(Category_OECD == method, "Yes", 
-                       ifelse(Category_OECD == "PFECAs" & method == "PFCAs", "Yes",
-                              "No"))) |> 
-  filter(Keep == "Yes") |> 
-  select(!c(Keep, method))
+FinalMembraneLipid <- rbind(CleanInitialMembraneLipid, 
+                            CleanPFSAs_FinalMembraneLipid) |> 
+  select(!method)
 
 # Collect all dfs ----
 
@@ -2453,6 +2451,7 @@ FinalParameters <- rbind(FinalPapp |>  mutate(Unit = "ln(cm/day)"),
                      "yes", "no"))
 
 write.xlsx(FinalParameters, here(OUTPUT,"FinalParameters.xlsx"))
+FinalParameters <- read_xlsx(here(OUTPUT, "FinalParameters.xlsx"))
 
 glimpseParameters <- FinalParameters |> 
   # filter(!str_detect(Parameter, 'SF_')) |> 
