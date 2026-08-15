@@ -163,6 +163,118 @@ Datab <- Datab_df %>%
 # Add the MW column for the QSPR
 Datab <- full_join(Datab, MW_df)
 
+# Freabsorbed ----
+CleanfReab <- Datab %>% 
+  filter(Parameter == "freab_ASBT_NTCP")
+
+CleanfReab |> ggplot(aes(x = MW, Value,
+                        colour = Category_OECD)) +
+  scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
+  geom_point() +
+  geom_errorbar(aes(ymin = (Value - SD),
+                    ymax = (Value + SD)),
+                width = .2) +
+  labs(y = "fraction reabsorbed",
+       x = "MW (g/mol)") +
+  theme_quick
+
+
+QSPR_fReab <- CleanfReab 
+
+y = QSPR_fReab$Value
+x = QSPR_fReab$MW
+data <- tibble(x = x, y = y)
+
+fit_fReab <- lm(y ~ x, data = data)
+
+Results_fReab <- summary(fit_fReab)
+print(Results_fReab)
+
+Formula <- "Intercept * X"
+RSE <- signif(Results_fReab$sigma, 3)
+R.squared <- signif(Results_fReab$r.squared, 3)
+Intercept <- signif(Results_fReab$coefficients[1], 3)
+
+
+Residuals_fReab <- tibble(
+  x = x,
+  y = residuals(fit_fReab)
+)
+
+Residuals_fReab_plot <- ggplot(Residuals_fReab) +
+  geom_point(aes(x, y)) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks=seq(1,13))+
+  labs(y = "Residuals", x = "MW ln(g/mol)",
+       title =  paste0("RSE: ", RSE)) +
+  theme_quick
+Residuals_fReab_plot
+
+predicted <- tibble(
+  MW = seq(min(PFAS_MW_list), max(PFAS_MW_list), by = 10),
+  predicted_y = predict(fit_fReab, list(x = seq(min(PFAS_MW_list), max(PFAS_MW_list), by = 10))),
+  min = predicted_y - RSE, 
+  max = predicted_y + RSE
+) %>% arrange(MW)
+
+observed_fReab <- data %>% 
+  mutate(MW = x, Value = y) |> 
+  arrange(MW)
+
+QSPR_fReab_plot <- QSPR_fReab |> ggplot() +
+  scale_color_viridis(option = "H", discrete = TRUE, end = 0.8) +
+  geom_point(aes(MW, Value, 
+                 colour = Category_OECD)) +
+  geom_errorbar(aes(MW, Value, 
+                    colour = Category_OECD,
+                    ymin = (Value - SD),
+                    ymax = (Value + SD)),
+                width = .2) +
+  geom_path(data = predicted, aes(MW, predicted_y)) +
+  geom_ribbon(data = predicted, aes(x = MW, ymin = min, ymax = max), alpha = .15) +
+  labs(caption = paste0("Formula: ", Formula, 
+                        ", RSE: ", RSE,
+                        ", R.squared: ", R.squared,
+                        ", Intercept: ", Intercept),
+       y = "fReab", 
+       x = "MW (g/mol)") +
+  theme_quick
+QSPR_fReab_plot
+
+D <- QSPR_fReab_plot + CP_theme
+R <- Residuals_fReab_plot + CP_theme
+
+QSPR_fReab_plots <- D / R + 
+  plot_layout(heights = c(5,1))
+
+ggsave(plot = QSPR_fReab_plots,
+       file = here(OUTPUT, "QSPR_fReab_plots.png"),
+       dpi = 600,
+       width = 12,
+       height = 12,
+       units = "cm")
+
+predicted_fReab <- tibble(
+  MW = PFAS_MW_list,
+  predicted_value = predict(fit_fReab, list(x = PFAS_MW_list))
+) %>% arrange(MW)
+
+collect_fReab <- predicted_fReab |> 
+  rename(Value = predicted_value) |> 
+  mutate(PBK_mechanism = "Transport",
+         Parameter = "fractionReabsorbed", 
+         SD = RSE, 
+         SD_comment = NA,
+         Specific = "predicted_linear",
+         Distribution = "uniform", 
+         Distribution_comment = NA
+  )
+
+write.csv(collect_fReab, here(OUTPUT,"PFAS_fReab.csv"))
+
+# add PFAS 
+predicted_OATP2B1 <- full_join(collect_OATP2B1, MW_df)
+
 # Absorption ----
 
 # Clean Papp values 
@@ -1336,7 +1448,7 @@ SD_Vmax_BSEP <- sd(c(5.8*60*24, 7*60*24, 8.4*60*24))
 Km_BSEP <- mean(c(4.3, 25.9, 19))                                               # umol/L, uM, Average affinity constant of bile acids to BSEP, following the above assumption ; de Bruijn et al. 2024 https://doi.org/10.14573/altex.2302011
 SD_Km_BSEP <- sd(c(4.3, 25.9, 19))
 
-CL_BSEP <- Vmax_BSEP/Km_BSEP
+CL_BSEP <- Vmax_BSEP/Km_BSEP                                                    # L/day
 SD_CL_BSEP <- Vmax_BSEP/Km_BSEP * sqrt((SD_Vmax_BSEP/Vmax_BSEP)**2 + (SD_Km_BSEP/Km_BSEP)**2)
 
 FinalBSEP <- tibble(

@@ -74,8 +74,8 @@ theme_quick <- theme_minimal() +
   )
 
 # Set input and output directory
-INPUT <- here("Output", "test_MC")
-OUTPUT <- here("Output","test_MC", "Processed_results") 
+INPUT <- here("Output", "trial_MC")
+OUTPUT <- here("Output","trial_MC", "Processed_results") 
 dir.create(OUTPUT, recursive = TRUE)
 
 Dose_df <- read_excel(here("Input","Evaluation_data.xlsx")) %>%
@@ -90,181 +90,30 @@ Dose_df <- read_excel(here("Input","Evaluation_data.xlsx")) %>%
 
 # functions ----
 
-calc_TK_results <- function(results, OD) {
+source(here("Script", "functions_calculate_results.R"))
 
-  data <-  results
-  plasma <- data |>
-    select(time, CP)
+# PFAS ----
 
-  # AUC ----
-  AUC <- trapz(data$time, data$CP) # ng * day/ml
+PFAS_list <- c(
+  "PFTrDA",
+  "PFDoDA",
+  "PFUnDA",
+  "PFDA",
+  "PFOS",
+  "PFNA",
+  "PFHpS",
+  "PFOA",
+  "PFHxS",
+  "ADONA",
+  "PFHpA",
+  "PFPeS",
+  "HFPO-DA",
+  "PFHxA",
+  "PFBS",
+  "PFPeA",
+  "PFBA"
+)
 
-  # Cmax and Tmax ----
-  Cmax <- max(data$CP) # ng/ml
-  Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
-
-  # plasma half-life ----
-  # elimination phase, i.e. after the tmax
-  elimination_phase <- data |>
-    filter(time >= Tmax,
-           CP >= 1e-9) |>
-    mutate(logCP = log(CP))
-
-  # check that there is enough data points to run linear regression
-  if (nrow(elimination_phase) < 3) {
-    warning("not enough data-points to calculate half life")
-    return(NA)
-  }
-
-  # linear regression
-  elimination_model <- lm(logCP ~ time, data = elimination_phase)
-
-  # calculate elimination constant (i.e slope of the line)
-  kel <- -elimination_model$coefficients[[2]]
-
-  # calculate the half-life
-  half_life <- (log(2) / kel) / 365 # unit correction to years
-
-  # fraction absorbed ----
-
-  # all amounts in tissues at Tmax
-  A_Tmax <- data %>% filter(time == Tmax) |>
-    select(starts_with("A")) |>
-    select(!c(AIL, AFe))
-
-  # calculate the total amount absorbed at Tmax
-  ATotal_Tmax <- rowSums(A_Tmax)
-
-  # Absorbed fraction (as a percentage of total oral dose)
-  OD <- OD
-  Fa <- ATotal_Tmax/OD *100
-
-  # fecal and urinary excretion ----
-  # Calculate excretion (feces and urine)
-
-  A_feces <- data |> filter(time > Tmax) |> select(AFe) |>
-    mutate(dailyFE = (AFe - lag(AFe, n = 1, default = first(AFe)))*0.1) |>
-    filter(dailyFE > 0)
-  FfeEl <- last(A_feces$AFe)/OD * 100
-  First10daysFE <- data |> filter(time == Tmax) |> select(AFe) |> pull()
-  AvDailyFE <- mean(A_feces$dailyFE) # average fecal excretion per day
-
-  A_urine <- data |> filter(time > Tmax) |> select(AUr) |>
-    mutate(dailyFE = (AUr - lag(AUr, n = 1, default = first(AUr)))*0.1) |>
-    filter(dailyFE > 0)
-  FurEl <- last(A_urine$AUr)/OD * 100
-  First10daysUR <- data |> filter(time == Tmax) |> select(AUr) |> pull()
-  AvDailyUR <- mean(A_urine$dailyFE) # average urinary excretion per day
-
-
-  return(c(AUC = AUC,
-           Cmax = Cmax,
-           Tmax = Tmax,
-           kel = kel,
-           HL = half_life,
-           Fa = Fa,
-           FfeEl = FfeEl,
-           First10daysFE = First10daysFE,
-           AvDailyFE = AvDailyFE,
-           FurEl = FurEl,
-           First10daysUR = First10daysUR,
-           AvDailyUR = AvDailyUR
-  )
-  )
-}
-calc_TK_summary_results <- function(raw_TK_results){
-
-  Results_all <- do.call(rbind, raw_TK_results) |>
-    na.omit() |> as.data.frame() |>
-    summarise(across(where(is.numeric), .fns =
-                       list(median = ~median(.,na.rm = TRUE),
-                            mean = ~mean(.,na.rm = TRUE),
-                            q25 = ~quantile(., 0.25, na.rm = TRUE),
-                            q75 = ~quantile(.,0.75, na.rm = TRUE)))) |>
-    pivot_longer(everything(), names_to = "Variable",
-                 values_to = "Value")  |>
-    separate(Variable,
-             into = c("Parameter", "Variable"))|>
-    pivot_wider(names_from = Variable, values_from = Value)
-
-  return(Results_all)
-}
-calc_C_summary <- function(C_df, Tissue){
-
-  C_df <- C_df  |> select(time, Tissue, PFAS, Iteration)
-  C_wide_df <- C_df |> select(!PFAS) |>
-    mutate(Iteration = paste0("n_", Iteration)) |>
-    pivot_wider(names_from = Iteration, values_from = Tissue)
-  C_summary <- C_wide_df |>
-    select(!time) |> t() |>
-    as.data.frame() |>
-    summarise(across(where(is.numeric), .fns =
-                       list(median = ~median(.,na.rm = TRUE),
-                            mean = ~mean(.,na.rm = TRUE),
-                            q25 = ~quantile(., 0.25, na.rm = TRUE),
-                            q75 = ~quantile(.,0.75, na.rm = TRUE)))) |>
-    pivot_longer(everything(), names_to = "Variable",
-                 values_to = "Value") |>
-    separate(Variable,
-             into = c("Time", "Variable")) |>
-    mutate(Time = as.numeric(str_replace(Time, "V", ""))) |>
-    mutate(Time = (Time*10)/365) |>  #unit correction, to years
-    pivot_wider(names_from = Variable, values_from = Value)
-
-  return(C_summary)
-}
-plot_per_tissue <- function(C_sum){
-
-  Tissue_i <- unique(C_sum$Tissue)
-
-  C_plot <- ggplot(C_sum, aes(Time, mean)) +
-    geom_ribbon(aes(ymin = q25,
-                    ymax = q75),
-                fill = "grey70") +
-    geom_path()+
-    labs(title = paste0(PFAS_i),
-         x = "Time (years)",
-         y = paste0(Tissue_i, " Concentration (ng/ml)")) +
-    theme_quick
-
-  return(C_plot)
-
-}
-plot_all_tissues <- function(C_ts){
-
-  C_ts_plot <- ggplot(C_ts, aes(Time, mean)) +
-    geom_ribbon(aes(ymin = q25,
-                    ymax = q75),
-                fill = "grey70") +
-    geom_path() +
-    facet_wrap(~ Tissue, scales = "free", nrow = 2) +
-    labs(title = paste0(PFAS_i),
-         x = "Time (years)",
-         y = "Concentration (ng/ml)") +
-    theme_quick
-
-  return(C_ts_plot)
-
-}
-
-PFAS_list <- c("ADONA",
-               "HFPO-DA",
-               "PFBA",
-               "PFBS",
-                "PFDA",
-                "PFDoDA",
-                "PFHpA",
-               "PFHpS",
-               "PFHxA",
-               "PFHxS",
-               "PFNA",
-               "PFOA",
-               "PFOS",
-               "PFPeA",
-               "PFPeS",
-               "PFTrDA",
-               "PFUnDA"
-               )
 nPFAS <- length(PFAS_list)
 
 # produce result files and plots for all PFAS ----
@@ -291,21 +140,75 @@ for (i in 1:nPFAS) {
   write.csv(TK_summary_results, file = here(OUTPUT, paste0(PFAS_i, "_TK_sumstat.csv")))
 
   # Predicted tissue concentrations ----
-  Results_df <- do.call(rbind, savey) |> mutate(PFAS = PFAS_i)
-  if(PFAS_i == "PFBA"){
-    Results_df <- Results_df |> filter(CP < 0.0025) #if dose 0.1 -> 0.00025
-  } else if(PFAS_i == "PFBS"){
-    Results_df <- Results_df |> filter(CP < 0.4) #if dose 0.1 -> 0.004
-  } else if(PFAS_i == "PFHxA"){
-    Results_df <- Results_df |> filter(CP < 0.20) # if dose 0.1 -> 0.02
-  } else if(PFAS_i == "PFPeA"){
-    Results_df <- Results_df |> filter(CP < 0.2) # if dose 0.1 -> 0.02
-  } else {
-    Results_df <- Results_df
-  }
 
-  Tissues_list <- c("CI", "CL_ic", "CPTT", "CA", "CR", "CP")
-  Tissues_names <- c("Intestine", "Liver IC", "Proximal tubule", "Adipose", "Rest", "Plasma")
+  parm.phys <- c(
+    BW = 64.41978,
+    QC = 5486.301,
+    Hct = 0.3645031,
+    VIc = 0.016,
+    VILc = 0.03848451,
+    SA_SIc = 1099.557,
+    VLc = 0.02458126,
+    VL_icc = 0.835,
+    VL_ecc = 0.161,
+    VKc = 0.004630086,
+    VPTc = 0.398,
+    VPTTc = 0.5470631,
+    VPTLc = 0.403,
+    VRKLc = 0.283,
+    VAc = 0.3426787,
+    MAc = 1.487552,
+    VPc = 0.065,
+    QIc = 0.165,
+    QLc = 0.06857434,
+    QKc = 0.1761446, 
+    QAc = 0.09413654,
+    QUrc = 0.022, 
+    GFR = 156.6414, 
+    QTc = 0.36, 
+    tco = 3.36,
+    Qmenses = 0.0008561644)
+  
+  VL <- parm.phys[["VLc"]]*parm.phys[["BW"]]
+  VL_ic <- parm.phys[["VL_icc"]]*VL
+  VL_ec <- parm.phys[["VL_ecc"]]*VL
+  
+  VK <- parm.phys[["VKc"]]*parm.phys[["BW"]]
+  VPT <- parm.phys[["VPTc"]]*VK
+  VPTT <- VPT*parm.phys[["VPTTc"]]
+  VPTL <- VPT*parm.phys[["VPTLc"]]
+  VRKL <- (VK - VPT)*parm.phys[["VRKLc"]]
+  VRKT <- VK - VPTT - VPTL - VRKL
+  
+  Initial_Tissues_list <- c("CI", "CL_ec", "CL_ic", "CPTL", "CPTT", "CRKL", "CRKT", "CA", "CR", "CP")
+  
+  Results_df <- do.call(rbind, savey) |> 
+    select(time, CI, CL_ec, CL_ic, CPTL, CPTT, CRKL, CRKT, CA, CR, CP, Iteration) |>
+    mutate(PFAS = PFAS_i) |> 
+    mutate(CL = (CL_ec*VL_ec + CL_ic*VL_ic)/VL,
+           CK = (CPTL*VPTL + CPTT*VPTT + CRKL*VRKL + CRKT*VRKT)/VK,
+           time = time/365) |> # time to years
+    select(PFAS, Iteration, time, CA, CR, CI, CL, CK, CP) |> 
+    pivot_longer(CA:CP,
+                 names_to = "Tissue", 
+                 values_to = "Concentration")
+    
+  # if(PFAS_i == "PFBA"){
+  #   Results_df <- Results_df |> filter(CP < 0.0025) #if dose 0.1 -> 0.00025
+  # } else if(PFAS_i == "PFBS"){
+  #   Results_df <- Results_df |> filter(CP < 0.4) #if dose 0.1 -> 0.004
+  # } else if(PFAS_i == "PFHxA"){
+  #   Results_df <- Results_df |> filter(CP < 0.20) # if dose 0.1 -> 0.02
+  # } else if(PFAS_i == "PFPeA"){
+  #   Results_df <- Results_df |> filter(CP < 0.2) # if dose 0.1 -> 0.02
+  # } else {
+  #   Results_df <- Results_df
+  # }
+  
+  Tissues_list <- c("CA", "CR", "CI", "CL", "CK", "CP")
+  
+  Tissues_names <- c("Adipose", "Rest","Intestine", "Liver", "Kidney", "Plasma")
+  
   # plasma concentration
   nTissues <- length(Tissues_list)
 
@@ -313,7 +216,7 @@ for (i in 1:nPFAS) {
 
   for (j in 1:nTissues) {
 
-    Tissue_j <- Tissues_list[j]#"PFOA"
+    Tissue_j <- Tissues_list[j]
     Tissue_j_name <- Tissues_names[j]
 
     C_summary <- calc_C_summary(Results_df, Tissue_j) |>

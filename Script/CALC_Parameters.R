@@ -95,8 +95,8 @@ BASE_PARAMS <- function(expAGE = NULL, expBW = NULL, sex = NULL) {
   # # Liver is divided in intracellular and extracellular compartments. 
   # # Extracellular compartment combines both the vascular and interstitial space
   # # Fractional volume of intracellular space was taken from Utsey et al. 2020 https://doi.org/10.1124/dmd.120.090498, https://github.com/metrumresearchgroup/PBPK_PC/blob/master/data/unified_tissue_comp.csv
-  VL_icc = 0.573                   # Fractional volume of intracellular space in the liver
-  VL_ecc = 0.161# 1- VL_icc #0.161             # Fractional volume of extracellular space in the liver
+  VL_icc = 0.835                   # Fractional volume of intracellular space in the liver
+  VL_ecc = 0.165            # Fractional volume of extracellular space in the liver
   
   
   # Kidney
