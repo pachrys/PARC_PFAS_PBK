@@ -12,27 +12,43 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
   Tlast <- filter(data, CP > 0) |> select(time) |> last() |> pull()
   
-  # elimination phase, i.e. after the Tmax
-  elimination_phase <- data |>
-    filter(time >= Tmax & time <= Tlast) |>
-    mutate(logCP = log(CP))
-  
   # calculate half life ----
   # check that there is enough data points to run linear regression
-  if (nrow(elimination_phase) < 3) {
-    warning("not enough data-points to calculate half life")
-    return(NA)
-  }
+  # if (is_empty(Tlast)){
+  #   
+  #   print("Tlast empty")
+  #   elimination_phase <- NA
+  #   kel <- NA
+  #   half_life <- NA
+  #   
+  # } else if(Tlast <= Tmax){
+  #   
+  #   print("not enough data-points to calculate half life")
+  #   elimination_phase <- NA
+  #   kel <- NA
+  #   half_life <- NA
+  #   
+  # } else {
+    
+    # elimination phase, i.e. after the Tmax
+    
+    elimination_phase <- data |>
+      filter(time >= Tmax & time <= Tlast) |>
+      mutate(logCP = log(CP))
+    
+    # linear regression to find the slope
+    elimination_model <- lm(logCP ~ time, data = elimination_phase)
+    
+    # calculate elimination constant (i.e. slope of the line)
+    kel <- -elimination_model$coefficients[[2]]
+    
+    # calculate the half-life
+    half_life <- (log(2) / kel) / 365 # unit correction to years
+    
+    
+  # }
   
-  # linear regression to find the slope
-  elimination_model <- lm(logCP ~ time, data = elimination_phase)
-  
-  # calculate elimination constant (i.e. slope of the line)
-  kel <- -elimination_model$coefficients[[2]]
-  
-  # calculate the half-life
-  half_life <- (log(2) / kel) / 365 # unit correction to years
-  
+ 
   
   # fractions absorbed and eliminated ----
 
@@ -75,29 +91,29 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   
   ## fecal and urinary clearances ----
   times_days = seq(round(Tmax,0)+1, round(Tlast,0)-1, by = 1) # it should be after Tmax as I'm using the pre-systemic first
-  
+
   # daily fecal elimination during elimination phase
-  dailyFe_elimination <- A_feces |> 
-    filter(time %in% times_days) |> 
-    mutate(daily = AFe - lag(AFe, n = 1, default = feEl_preTmax)) |> 
-    filter(daily > 0) |> 
+  dailyFe_elimination <- A_feces |>
+    filter(time %in% times_days) |>
+    mutate(daily = AFe - lag(AFe, n = 1, default = feEl_preTmax)) |>
+    filter(daily > 0) |>
     select(daily) |> pull() # ug
 
-  urEl_preTmax <- filter(A_urine, time <= Tmax) |> 
+  urEl_preTmax <- filter(A_urine, time <= Tmax) |>
     select(!time) |> last() |> pull()
-  
+
   # daily urinary elimination during elimination phase
-  dailyUr_elimination <- A_urine |> 
-    filter(time %in% times_days) |> 
-    mutate(daily = AUr - lag(AUr, n = 1, default = urEl_preTmax)) |> 
-    filter(daily > 0) |> 
+  dailyUr_elimination <- A_urine |>
+    filter(time %in% times_days) |>
+    mutate(daily = AUr - lag(AUr, n = 1, default = urEl_preTmax)) |>
+    filter(daily > 0) |>
     select(daily) |> pull() # ug
-  
+
   # daily plasma concentration
-  dailyCP <- data |> select(time, CP) |> 
-    filter(time %in% times_days) |> 
+  dailyCP <- data |> select(time, CP) |>
+    filter(time %in% times_days) |>
     select(CP) |> pull()
-  
+
   CLfe = dailyFe_elimination/dailyCP # ug/day / ug/L => L/day
   median_CLfe <- median(CLfe) # ug/day / ug/L => L/day
   CLur = dailyUr_elimination/dailyCP # ug/day / ug/L => L/day
@@ -121,18 +137,33 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
            Furine = Furine/100,
            
            RfeEl = RfeEl,
-           RurEl = RurEl#,
+           RurEl = RurEl,
            
-           # median_CLfe = median_CLfe,
-           # median_CLur = median_CLur
+           CLfe = median_CLfe,
+           CLur = median_CLur
            )
   )
 }
 
+# quick function to find errors...
+check_error <- function(PBK_OUTPUT, OD) {
+  
+  data <- PBK_OUTPUT |> drop_na()
+  Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
+  Tlast <- filter(data, CP > 0) |> select(time) |> last() |> pull()
+  Iteration <- unique(data$Iteration)
+  
+  return(c(Tmax = Tmax, 
+           Tlast = Tlast, 
+           Iteration = Iteration))}
+
+
+
 calc_TK_summary_results <- function(raw_TK_results){
   
-  Results_all <- do.call(rbind, raw_TK_results) |>
-    na.omit() |> as.data.frame() |>
+  Results_all <- raw_TK_results |>  #do.call(rbind, raw_TK_results) |>
+    na.omit() |> t() |> 
+    as.data.frame() |> 
     summarise(across(where(is.numeric), .fns =
                        list(median = ~median(.,na.rm = TRUE),
                             mean = ~mean(.,na.rm = TRUE),
@@ -176,7 +207,7 @@ plot_per_tissue <- function(C_sum){
   
   Tissue_i <- unique(C_sum$Tissue)
   
-  C_plot <- ggplot(C_sum, aes(Time, mean)) +
+  C_plot <- ggplot(C_sum, aes(Time/365, median)) +
     geom_ribbon(aes(ymin = q25,
                     ymax = q75),
                 fill = "grey70") +
@@ -192,7 +223,7 @@ plot_per_tissue <- function(C_sum){
 
 plot_all_tissues <- function(C_ts){
   
-  C_ts_plot <- ggplot(C_ts, aes(Time, mean)) +
+  C_ts_plot <- ggplot(C_ts, aes(Time, median)) +
     geom_ribbon(aes(ymin = q25,
                     ymax = q75),
                 fill = "grey70") +

@@ -243,6 +243,16 @@ Calc_final_params <- function(parm.chem, parm.phys){
       PA = PA,
       PR = PR,
       
+      SF_OATP2B1_I = SF_OATP2B1_I,
+      SF_OATP2B1 = SF_OATP2B1,
+      SF_OATP1B3 = SF_OATP1B3,
+      SF_OATP1B1 = SF_OATP1B1,
+      SF_NTCP = SF_NTCP,
+      SF_BSEP = SF_BSEP,
+      SF_OAT1 = SF_OAT1,
+      SF_OAT3 = SF_OAT3,
+      SF_OAT4 = SF_OAT4,
+      
       Clear_apparent = Clear_apparent,
       Clear_OATP2B1_I = Clear_OATP2B1_I,
       CF_I = CF_I_corrected,

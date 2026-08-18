@@ -1,6 +1,6 @@
 # --------------------------------------------------------------------------- #
 # Script for running the MCMC using eFAST
-# Chrysanthi Pachoulide, June 2026
+# Chrysanthi Pachoulide, August 2026
 # --------------------------------------------------------------------------- #
 
 rm(list=ls()) # to clear out the global environment
@@ -75,7 +75,7 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "trial_MC") 
+OUTPUT <- here("Output", "Same_dose_all_UncertaintyAnalysis_MC_LHC") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -110,12 +110,12 @@ PFAS_list <- c(
 
 Dose_df <- tibble(
   PFAS = PFAS_list,
-  Dose = 4) |>
-  mutate(Dose = ifelse(PFAS == "PFBS", 18.4, 
-                       ifelse(PFAS == "HFPO-DA" , 19.6,
-                              Dose)))
+  Dose = 0.1) 
+# |>
+#   mutate(Dose = ifelse(PFAS == "PFBS", 18.4, 
+#                        ifelse(PFAS == "HFPO-DA" , 19.6,
+#                               Dose)))
 
-# Dose_df <- Abraham_df
 # PFAS_list <- Dose_df$PFAS
 
 nPFAS <- length(PFAS_list)
@@ -153,7 +153,7 @@ parm.phys <- c(
   QKc = 0.1761446, 
   QAc = 0.09413654,
   QUrc = 0.022, 
-  GFR = 156.6414, 
+  GFR = 193.2765, # = 0.2*0.1761446*5486.301, #156.6414, 
   QTc = 0.36, 
   tco = 3.36,
   Qmenses = 0.0008561644)
@@ -203,7 +203,7 @@ run_Monte_Carlo <- function(parm.chem, parm.phys, Dose_ug_day){
   run_pars <- as.data.frame(pars)
   
   PBK.out <- lsoda(y = A_init,
-                   times = seq(0, 3650, by = 0.4), # in days 0.04
+                   times = seq(0, 3650, by = 1), 
                    func = PBK.model,
                    parms = pars,
                    rtol = 1e-4,        
@@ -256,7 +256,7 @@ for (i in 1:nPFAS) {
   # this optimises the Monte Carlo sampling, also used by McNally & Loizou
   
   set.seed(10010) # set seeds for reproducibility
-  n = 10 #1000 # number of samples per parameter
+  n = 1000 # number of samples per parameter
   X.LHS.MC.design <- randomLHS(n, MC.factors, preserveDraw = TRUE) # create lhs grid
   Y.LHS.MC.design <- matrix(0, nrow = n, ncol = MC.factors) # empty matrix to populate the parameters with
   
@@ -297,7 +297,7 @@ for (i in 1:nPFAS) {
     geom_histogram()+
     facet_wrap(~Parameter, scales = "free")+
     coord_flip()+
-    labs(title = paste0(PFAS_i,"Monte Carlo parameter distributions"),
+    labs(title = paste0(PFAS_i," Monte Carlo parameter distributions"),
          y = "Frequency",
          x = "Value (different unit per parameter)") +
     theme_quick 
@@ -309,8 +309,8 @@ for (i in 1:nPFAS) {
   ggsave(plot = Design_plot,
          file = here(OUTPUT, paste0(PFAS_i,"_LHS_MC_ExpDesign.png")),
          dpi = 600,
-         width = 18,
-         height = 24,
+         width = 20,
+         height = 26,
          units = "cm")
   
   write.csv(MC.design, 
