@@ -2,7 +2,7 @@
 
 calc_TK_results <- function(PBK_OUTPUT, OD) {
   
-  data <- PBK_OUTPUT |> drop_na()
+  data <- PBK_OUTPUT |> drop_na() 
   
   # AUC ----
   AUC <- trapz(data$time, data$CP) # ng * day/ml
@@ -10,7 +10,7 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   # Cmax, Tmax, Tlast ----
   Cmax <- max(data$CP) # ng/ml
   Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
-  Tlast <- filter(data, CP > 0) |> select(time) |> last() |> pull()
+  Tlast <- filter(data, CP > 1e-9) |> select(time) |> last() |> pull() # 1e-9 ng/ml is already a very small number
   
   # calculate half life ----
   # check that there is enough data points to run linear regression
@@ -96,8 +96,9 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   dailyFe_elimination <- A_feces |>
     filter(time %in% times_days) |>
     mutate(daily = AFe - lag(AFe, n = 1, default = feEl_preTmax)) |>
-    filter(daily > 0) |>
-    select(daily) |> pull() # ug
+    filter(daily > 0) 
+  times_days_Fe <- dailyFe_elimination$time
+  dailyFe_elimination <- dailyFe_elimination$daily # ug
 
   urEl_preTmax <- filter(A_urine, time <= Tmax) |>
     select(!time) |> last() |> pull()
@@ -106,24 +107,27 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   dailyUr_elimination <- A_urine |>
     filter(time %in% times_days) |>
     mutate(daily = AUr - lag(AUr, n = 1, default = urEl_preTmax)) |>
-    filter(daily > 0) |>
-    select(daily) |> pull() # ug
+    filter(daily > 0) 
+  
+  times_days_Ur <- dailyUr_elimination$time
+  dailyUr_elimination <- dailyUr_elimination$daily # ug
 
   # daily plasma concentration
-  dailyCP <- data |> select(time, CP) |>
-    filter(time %in% times_days) |>
+  dailyCP_forFe <- data |> select(time, CP) |>
+    filter(time %in% times_days_Fe) |>
     select(CP) |> pull()
 
-  CLfe = dailyFe_elimination/dailyCP # ug/day / ug/L => L/day
+  dailyCP_forUr <- data |> select(time, CP) |>
+    filter(time %in% times_days_Ur) |>
+    select(CP) |> pull()
+  
+  CLfe = dailyFe_elimination/dailyCP_forFe # ug/day / ug/L => L/day
   median_CLfe <- median(CLfe) # ug/day / ug/L => L/day
-  CLur = dailyUr_elimination/dailyCP # ug/day / ug/L => L/day
+  CLur = dailyUr_elimination/dailyCP_forUr # ug/day / ug/L => L/day
   median_CLur <- median(CLur) # ug/day / ug/L => L/day
 
   return( c(AUC = AUC,
            Cmax = Cmax,
-           # Tmax = Tmax/365,
-           # Tlast = Tlast/365,
-           # kel = kel,
            HL = half_life,
            
            Fa = Fa/100,
@@ -131,8 +135,6 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
            
            Ffeces = Ffeces/100,
            FbilEl = FbilEl/100, 
-           # Ffeces_presystemic = Ffeces_presystemic,
-           # Ffeces_duringelimination = Ffeces_duringelimination,
            
            Furine = Furine/100,
            

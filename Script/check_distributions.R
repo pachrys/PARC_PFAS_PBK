@@ -5,7 +5,7 @@
 # Chrysanthi Pachoulide, August 2026
 # --------------------------------------------------------------------------- #
 
-rm(list=ls()) # to clear out the global environment
+# rm(list=ls()) # to clear out the global environment
 
 
 # Load packages
@@ -77,7 +77,7 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "Check_distributions") 
+OUTPUT <- here("Output", "OriginalRSE_checkdistr") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -162,10 +162,12 @@ parm.phys <- c(
 
 
 ## MC parameters
-MC_TK_params <- read_xlsx(here("Input", "MS_TK_Parameters.xlsx")) |>
+MC_TK_params <- read_xlsx(here("Input", "UA_TK_Parameters.xlsx")) |> 
   mutate(Predicted = ifelse(Specific == "calculated", "yes", Predicted))|>
   filter(Predicted == "yes") |>
-  select(PFAS, Parameter, Value, SD, Distribution)
+  select(PFAS, Parameter, PBK_mechanism, Value, RSE, SD, Distribution)
+
+#   select(PFAS, Parameter, Value, RSE, SD, Distribution)
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))
@@ -237,12 +239,17 @@ for (i in 1:nPFAS) {
     select(!PFAS) 
   
   parm.chem <- PhysChemTK_params |> 
+    mutate(Value = ifelse(PBK_mechanism == "Transport", log(Value), Value),
+           RSE = ifelse(PBK_mechanism == "Transport", log(RSE), Value))
+  
+  parm.chem <- parm.chem |> 
     mutate(meanlog = ifelse(Distribution == "lognormal", Value, NA),
-           sdlog = ifelse(Distribution == "lognormal", SD, NA),
-           min = ifelse(Distribution == "uniform", Value - SD, NA),
-           max = ifelse(Distribution == "uniform", Value + SD, NA),
-           Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif")) |> 
-    mutate(min = ifelse(min <= 0, 1e-10, min))
+           sdlog = ifelse(Distribution == "lognormal", RSE, NA),
+           min = ifelse(PBK_mechanism == "Scaling", 0.1, NA),
+           max = ifelse(PBK_mechanism == "Scaling", Value+SD, NA),
+           Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))
+  
+  #   mutate(min = ifelse(min <= 0, 1e-10, min))
   
   MC.parms <- parm.chem$Parameter
   MC.factors <- length(MC.parms) 
@@ -308,74 +315,76 @@ for (i in 1:nPFAS) {
          height = 26,
          units = "cm")
   
-  write.csv(MC.design, 
-            file = here(OUTPUT, paste0(PFAS_i,"MC_ExpDesign.csv")), 
-            row.names = FALSE)
+  # write.csv(MC.design, 
+  #           file = here(OUTPUT, paste0(PFAS_i,"MC_ExpDesign.csv")), 
+  #           row.names = FALSE)
   
   # results <- apply(MC.design, 1, function(row) {
-    # run_Monte_Carlo(row,
-    #                 parm.phys = parm.phys,
-    #                 Dose_ug_day = Dose_ug_day)
+  # run_Monte_Carlo(row,
+  #                 parm.phys = parm.phys,
+  #                 Dose_ug_day = Dose_ug_day)
   # })
-  
+  # 
   # y <- results
   # savey <- mapply(cbind, y,
   #                 "Iteration" = seq(1,length(y), by = 1),
   #                 "PFAS" = PFAS_i,
   #                 SIMPLIFY = FALSE)
-  # save(savey, file = here(OUTPUT, paste0(PFAS_i,"_Monte_Carlo_y.RData")))
-  # 
+  # # save(savey, file = here(OUTPUT, paste0(PFAS_i,"_Monte_Carlo_y.RData")))
+  # #
   # Monte_Carlo_PFAS_savey[[i]] <- savey
 }
 
-# names(Monte_Carlo_PFAS_savey) <- PFAS_list
+names(Monte_Carlo_PFAS_savey) <- PFAS_list
+
+Save_MC_PBK_results <- rbindlist(Monte_Carlo_PFAS_savey, idcol = "PFAS")
 # 
-# Save_MC_PBK_results <- rbindlist(Monte_Carlo_PFAS_savey, idcol = "PFAS")
 # 
-
-LOC_DESIGN_FILES <- here("Output",
-                         "Check_distributions"
-)
-
-experimental_design_df <-
-  list.files(path = here(LOC_DESIGN_FILES),
-             pattern = "\\MC_ExpDesign.csv$") |>
-  map_df(~ read_csv(file = here(LOC_DESIGN_FILES, .),
-                    id = "name")) |> 
-  mutate(PFAS = str_replace_all(name,
-                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/Check_distributions/",
-                                "")) |> 
-  mutate(PFAS = str_replace_all(PFAS,
-                                "MC_ExpDesign.csv",""),
-         Iteration = rep(seq(1,1000, by = 1), 17))|>
-  select(!name) |> 
-  unite("PFAS_iteration", PFAS:Iteration, sep = "_") 
-
-
-experimental_design_long <- experimental_design_df |> 
-  pivot_longer(!PFAS_iteration, names_to = "Parameter", values_to = "Value") |> 
-  separate(PFAS_iteration, into = c("PFAS", "Iteration"), sep = "_") |> 
-  mutate(Value = ifelse(str_detect(Parameter, "logD_"), log(Value), 
-                        ifelse(Parameter == "Papp_SI", log(Value), 
-                               Value))
-  ) 
-
-
-nC_MW_df <- read.csv(here("Input", "nC_MW_df.csv")) |>
-  mutate(PFAS = str_replace_all(PFAS, "_", "-"))
-
-experimental_design_long <- full_join(experimental_design_long, 
-                                      nC_MW_df) 
-
-
-ggplot(data = experimental_design_long, 
-       aes(x = Value, fill = as.factor(n_C))) + 
-  geom_histogram() +
-  facet_wrap(~ Parameter, scales = "free_x") +
-  # coord_flip() +
-  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, name = "nC") +
-  labs(title = "Uncertainty Analysis experimental design",
-       x = "Parameter value",
-       y = "Frequency of occurence in errored simulations") +
-  theme_quick +
-  theme(legend.position = "right")
+# LOC_DESIGN_FILES <- here("Output",
+#                          "Check_distributions"
+# )
+# 
+# experimental_design_df <-
+#   list.files(path = here(LOC_DESIGN_FILES),
+#              pattern = "\\MC_ExpDesign.csv$") |>
+#   map_df(~ read_csv(file = here(LOC_DESIGN_FILES, .),
+#                     id = "name")) |> 
+#   mutate(PFAS = str_replace_all(name,
+#                                 "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/Check_distributions/",
+#                                 "")) |> 
+#   mutate(PFAS = str_replace_all(PFAS,
+#                                 "MC_ExpDesign.csv",""),
+#          Iteration = rep(seq(1,1000, by = 1), 17))|>
+#   select(!name) |> 
+#   unite("PFAS_iteration", PFAS:Iteration, sep = "_") 
+# 
+# 
+# experimental_design_long <- experimental_design_df |> 
+#   pivot_longer(!PFAS_iteration, names_to = "Parameter", values_to = "Value") |> 
+#   separate(PFAS_iteration, into = c("PFAS", "Iteration"), sep = "_") |> 
+#   mutate(Value = ifelse(str_detect(Parameter, "logD_"), log(Value), 
+#                         ifelse(Parameter == "Papp_SI", log(Value), 
+#                                Value))
+#   ) 
+# 
+# 
+# nC_MW_df <- read.csv(here("Input", "nC_MW_df.csv")) |>
+#   mutate(PFAS = str_replace_all(PFAS, "_", "-"))
+# 
+# experimental_design_long <- full_join(experimental_design_long, 
+#                                       nC_MW_df) 
+# 
+# PFBS <- experimental_design_long |> 
+#   filter(PFAS == "PFBS")
+#   
+# ggplot(data = PFBS, 
+#        aes(x = Value, fill = as.factor(n_C))) + 
+#   geom_histogram() +
+#   facet_wrap(~ Parameter, scales = "free_x") +
+#   # coord_flip() +
+#   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, name = "nC") +
+#   labs(title = "Uncertainty Analysis experimental design",
+#        x = "Parameter value",
+#        y = "Frequency of occurence in errored simulations") +
+#   theme_quick +
+#   theme(legend.position = "right")
