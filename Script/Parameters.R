@@ -9,7 +9,7 @@ rm(list=ls())
 
 # Load packages
 library(readxl)
-library(xlsx)
+# library(xlsx)
 library(here)
 library(tidyverse)
 library(showtext)
@@ -1317,21 +1317,7 @@ y = QSPR_OAT4$Value
 x = QSPR_OAT4$MW
 data <- tibble(x = x, y = y)
 
-# 
-# fit_OAT4 <- nls(y ~ SSlogis(x, Asym, xmid, scal),
-#                    data = data,
-#                    control = nls.control(maxiter = 1000000))
-
-fit_OAT4 <- nls(y ~ Const + Asym/(1+exp((xmid-x)/scal)),
-                data = data,
-                start = list(Const = min(QSPR_OAT4$Value),
-                             Asym = 0.1682 ,
-                             xmid = 346.0462  ,
-                             scal = 42.9345 ),
-                control = nls.control(maxiter = 1000000),
-                algorithm='port')
-
-# fit_OAT4 <- lm(y ~ x, data = data)
+fit_OAT4 <- lm(y ~ x, data = data)
 
 Results_OAT4 <- summary(fit_OAT4)
 print(Results_OAT4)
@@ -1343,12 +1329,9 @@ rm(Asym)
 rm(xmid)
 rm(scal)
 
-Formula <- Results_OAT4$formula[3]
+Formula <- "Intercept * X"
 RSE <- signif(Results_OAT4$sigma, 3)
-Const <- signif(Results_OAT4$coefficients[1], 3)
-Asym <- signif(Results_OAT4$coefficients[2], 3)
-xmid <- signif(Results_OAT4$coefficients[3], 3)
-scal <- signif(Results_OAT4$coefficients[4], 3)
+R.squared <- signif(Results_OAT4$r.squared, 3)
 Intercept <- signif(Results_OAT4$coefficients[1], 3)
 
 

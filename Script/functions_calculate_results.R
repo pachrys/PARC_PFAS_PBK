@@ -225,7 +225,7 @@ plot_per_tissue <- function(C_sum){
 
 plot_all_tissues <- function(C_ts){
   
-  C_ts_plot <- ggplot(C_ts, aes(Time, median)) +
+  C_ts_plot <- ggplot(C_ts, aes(Time/365, median)) +
     geom_ribbon(aes(ymin = q25,
                     ymax = q75),
                 fill = "grey70") +
