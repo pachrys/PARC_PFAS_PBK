@@ -1039,7 +1039,7 @@ Visualise_P <- P_df |>
   pivot_wider(names_from = stat, values_from = Value)
 
 Visualise_P <- full_join(Visualise_P, nC_MW_df)
-
+write.csv(Visualise_P, here(OUTPUT,"All_PFAS_finalParameters.csv"), row.names = FALSE)
 Parameters_plot <- ggplot() +
   geom_pointrange(data = Visualise_P,
                   aes(x = reorder(PFAS, MW),
