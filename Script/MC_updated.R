@@ -140,7 +140,7 @@ PFAS_list <- c(
 
 Dose_df <- tibble(
   PFAS = PFAS_list,
-  Dose = 0) 
+  Dose = 0.1) 
 # 4) |> 
 #   mutate(Dose = ifelse(PFAS == "PFBS", 18.4,
 #                        ifelse(PFAS == "HFPO-DA" , 19.6,
@@ -673,15 +673,15 @@ HL_predicted_df <- full_join(HL_predicted_df, nC_MW_df)
 HL_predicted_plot <- ggplot() +
   geom_errorbar(data = HL_predicted_df,
                 aes(x = reorder(PFAS, MW),
-                    y = median,
+                    y = log10(median),
                     colour = Category_OECD,
-                    ymin = q25,
-                    ymax = q75),
+                    ymin = log10(q25),
+                    ymax = log10(q75)),
                 width = .01,
                 linewidth = .4) +
   geom_point(data = HL_predicted_df,
              aes(x = reorder(PFAS, MW),
-                 y = median,
+                 y = log10(median),
                  shape = Category_OECD,
                  colour = Category_OECD),
              size = 1.5) +
@@ -749,8 +749,10 @@ Fa_predicted_df <- full_join(Fa_predicted_df, nC_MW_df)
 
 Fa_plot <- ggplot()+
   geom_boxplot(data = Fa_predicted_df,
-               aes(x = reorder(PFAS, MW), y = median,
-                   ymin = q25, lower = q25, middle = median, upper = q75, ymax = q75,
+               aes(x = reorder(PFAS, MW), y = log10(median),
+                   ymin = log10(q25), lower = log10(q25), 
+                   middle = log10(median), 
+                   upper = log10(q75), ymax = log10(q75),
                    fill = Category_OECD, colour = Category_OECD),
                stat = "identity",
                linewidth = 0.3,
@@ -831,8 +833,10 @@ RurRfe_predicted_df <- full_join(RurRfe_predicted_df, nC_MW_df)
 
 CL_plot <- ggplot() +
   geom_boxplot(data = CLurCLfe_predicted_df,
-               aes(x = reorder(PFAS, MW), y = median,
-                   ymin = q25, lower = q25, middle = median, upper = q75, ymax = q75,
+               aes(x = reorder(PFAS, MW), y = log10(median),
+                   ymin = log10(q25), lower = log10(q25), 
+                   middle = log10(median), 
+                   upper = log10(q75), ymax = log10(q75),
                    fill = Category_OECD, colour = Category_OECD),
                stat = "identity",
                linewidth = 0.3,
@@ -869,7 +873,7 @@ UA_one <- CP_plot +
 UA_two <- Fa_plot + 
   labs(title = "B." ,
        x = "",
-       y = "Fraction absorbed") +
+       y = "Fraction absorbed (log10 scale)") +
   guides(colour = FALSE) + guides(linetype = FALSE) + 
   Patchwork_theme + 
   theme(legend.position = "none", 
@@ -878,7 +882,7 @@ UA_two <- Fa_plot +
 UA_three <- CL_plot + 
   labs(title = "C." ,
        x = "",
-       y = "Clearance (L/day)") +
+       y = "Clearance (L/day) (log10 scale)") +
   guides(fill = FALSE) + guides(colour = FALSE) + 
   Patchwork_theme + 
   theme(legend.position = "none", 
@@ -887,7 +891,7 @@ UA_three <- CL_plot +
 UA_four <- HL_predicted_plot + 
   labs(title = "D.",
        x = "",
-       y = "Half-life (years)") +
+       y = "Half-life (years) (log10 scale)") +
   Patchwork_theme + 
   theme(legend.position = "bottom", 
         axis.text.x = element_text(angle = 90))
@@ -900,7 +904,7 @@ UA_plot <- UA_one / (UA_two + UA_three + UA_four) +
         legend.position='bottom')
 
 ggsave(plot = UA_plot,
-       file = here(OUTPUT,"UA_plot_notinlog.png"),
+       file = here(OUTPUT,"UA_plot_log.png"),
        dpi = 600,
        width = 24,
        height = 16,
