@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Script for running the MCMC using eFAST
+# Script for running the Uncertainty Analysis using LHS
 # Chrysanthi Pachoulide, August 2026
 # --------------------------------------------------------------------------- #
 
@@ -19,7 +19,7 @@ library(pracma)
 library(viridis)
 library(lhs)
 library(data.table)
-
+library(patchwork)
 
 # For plotting
 library(showtext)
@@ -105,7 +105,7 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "UncertaintyAnalysisSameDoseAll") 
+OUTPUT <- here("Output", "UA_GoF_22Aug") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -137,14 +137,18 @@ PFAS_list <- c(
   "PFPeA",
   "PFBA"
 )
+# 
+# PFAS_list <- c(
+#   "PFBA",
+#   "PFBS"
+# )
 
 Dose_df <- tibble(
   PFAS = PFAS_list,
-  Dose = 0.1) 
-# 4) |> 
-#   mutate(Dose = ifelse(PFAS == "PFBS", 18.4,
-#                        ifelse(PFAS == "HFPO-DA" , 19.6,
-#                               Dose)))
+  Dose = 4) |> 
+  mutate(Dose = ifelse(PFAS == "PFBS", 18.4,
+                       ifelse(PFAS == "HFPO-DA" , 19.6,
+                              Dose)))
 
 # PFAS_list <- Dose_df$PFAS
 
@@ -191,9 +195,7 @@ parm.phys <- c(
 ## MC parameters
 MC_TK_params <- read_xlsx(here("Input", "UA_TK_Parameters.xlsx")) |> 
   mutate(Predicted = ifelse(Specific == "calculated", "yes", Predicted))|>
-  filter(Predicted == "yes") |>
-  select(PFAS, Parameter, PBK_mechanism, Value, RSE, Distribution)
-
+  filter(Predicted == "yes") 
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))
@@ -226,7 +228,7 @@ run_Monte_Carlo <- function(parm.chem, parm.phys, Dose_ug_day){
   run_pars <- as.data.frame(pars)
   
   PBK.out <- lsoda(y = A_init,
-                   times = seq(0, 365*3, by = 1), 
+                   times = seq(0, 365*3, by = 0.1), 
                    func = PBK.model,
                    parms = pars,
                    rtol = 1e-4,        
@@ -265,16 +267,20 @@ for (i in 1:nPFAS) {
     select(!PFAS) 
   
   parm.chem <- PhysChemTK_params |> 
-    mutate(Value = ifelse(PBK_mechanism == "Transport", log(Value), Value))
+    mutate(Value = ifelse(PBK_mechanism == "Transport", log(Value), Value)) |> 
+    mutate(cValue = ifelse(PBK_mechanism == "Transport", log(cValue), cValue)) 
+    
   
   parm.chem <- parm.chem |> 
-    mutate(meanlog = ifelse(Distribution == "lognormal", Value, NA),
+    mutate(meanlog = ifelse(Distribution == "lognormal", cValue, NA),
            sdlog = ifelse(Distribution == "lognormal", RSE, NA),
            # Value = ifelse(PBK_mechanism == "Scaling", Value*1e-6, Value),
            # RSE = ifelse(PBK_mechanism == "Scaling", RSE*1e-6, RSE),
-           min = ifelse(PBK_mechanism == "Scaling", 
-                        ifelse((Value - RSE)>0, Value - RSE, 0.1), NA),#1, NA),
-           max = ifelse(PBK_mechanism == "Scaling", Value + RSE,NA),#Value, NA),
+           min = ifelse(PBK_mechanism == "Scaling", 1, NA),#1, NA),
+           # min = ifelse(PBK_mechanism == "Scaling", 
+           #              ifelse((Value - RSE)>0, Value - RSE, 0.1), NA),#1, NA),
+           max = ifelse(PBK_mechanism == "Scaling", cValue,NA),#Value, NA),
+           # max = ifelse(PBK_mechanism == "Scaling", Value + RSE,NA),#Value, NA),
            Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))
 
   MC.parms <- parm.chem$Parameter
@@ -284,7 +290,7 @@ for (i in 1:nPFAS) {
   # this optimises the Monte Carlo sampling, also used by McNally & Loizou
   
   set.seed(10010) # set seeds for reproducibility
-  n = 100#0 # number of samples per parameter
+  n = 1000 # number of samples per parameter
   X.LHS.MC.design <- randomLHS(n, MC.factors, preserveDraw = TRUE) # create lhs grid
   Y.LHS.MC.design <- matrix(0, nrow = n, ncol = MC.factors) # empty matrix to populate the parameters with
   
@@ -405,10 +411,12 @@ for (i in 1:nPFAS) {
   if(is.list(TK_results)){
     errored_iterations <- which(sapply(TK_results, function(x) length(x) < 3)) #
     message(glue("Removing iterations n{errored_iterations} that give errors. \\"))
+    write.csv(errored_iterations, here(OUTPUT, paste0(PFAS_i, "_errored_iterations.csv")), row.names = FALSE)
     savey <- savey[-errored_iterations] 
     TK_results <- sapply(savey, calc_TK_results, OD) 
   } else if(!is_empty(which(is.na(TK_results[2,]) | TK_results[2,]<=2))){
     errored_iterations <- which(is.na(TK_results[2,]) | TK_results[2,]<=2)
+    write.csv(errored_iterations, here(OUTPUT, paste0(PFAS_i, "_errored_iterations.csv")), row.names = FALSE)
     message(glue("Removing iterations n{errored_iterations} that give errors. \\"))
     savey <- savey[-errored_iterations] 
     TK_results <- sapply(savey, calc_TK_results, OD) 
@@ -991,6 +999,8 @@ HL_MesPred_plot <-
              size = 1.5) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
   guides(color = guide_legend(override.aes = list(fill = NA))) +
+  labs(x = "",
+       y = "Half life (years) (log10 scale)") +
   theme_quick
 
 HL_MesPred_plot
@@ -1016,7 +1026,7 @@ P_df <- list.files(path = here(OUTPUT),
   select(!"...2") |> 
   # rename(Iteration = "...2") |> 
   mutate(PFAS = str_replace_all(name,
-                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/UncertaintyAnalysisSameDoseAll/",
+                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/UA_GoF_22Aug/",
                                 "")) |> 
   mutate(PFAS = str_replace_all(PFAS,
                                 "_final_model_parameters.csv","")) |>
@@ -1024,7 +1034,7 @@ P_df <- list.files(path = here(OUTPUT),
 
 
 Visualise_P <- P_df |>  
-  select(!Clear_net_reabsorption_unscaled) |> 
+  # select(!Clear_net_reabsorption_unscaled) |> 
   rename_with(~str_remove(.x, "_")) |> 
   rename_with(~str_remove(.x, "_")) |> 
   group_by(PFAS) |> 
@@ -1040,6 +1050,111 @@ Visualise_P <- P_df |>
 
 Visualise_P <- full_join(Visualise_P, nC_MW_df)
 write.csv(Visualise_P, here(OUTPUT,"All_PFAS_finalParameters.csv"), row.names = FALSE)
+
+
+
+SA_SI <-1099.557*64.41978
+VI_L <- 0.03848451 * 64.41978      
+VL_ic <- 0.03848451 * 64.41978 * 0.835               
+VPT <- 0.004630086 * 64.41978 * 0.398
+
+
+Selected_final_P <- Visualise_P |> 
+  filter(Parameter %in% c(
+    "fuPTec",
+    "fuLec",
+    "fuPTL",
+    "SFOATP2B1I",
+    "SFOATP2B1",
+    "SFOATP1B3",
+    "SFOATP1B1", 
+    "SFNTCP",    
+    "SFBSEP",
+    "SFOAT1",           
+    "SFOAT3",
+    "SFOAT4",
+    "Clearapparent",
+    "ClearOATP2B1I",
+    "ClearuptakeI",
+    "ClearOATP1B1",
+    "ClearOATP1B3",
+    "ClearOATP2B1L",
+    "ClearNTCP",
+    "ClearBSEP",
+    "ClearOAT3",
+    "ClearOAT1",
+    "ClearOAT4"  
+  )) |> 
+  pivot_wider(names_from = Parameter, values_from = c(median, q25, q75)) |> 
+  mutate(
+    median__Papp_SI = median_Clearapparent / (SA_SI*1e-3),    
+    q25__Papp_SI = q25_Clearapparent / (SA_SI*1e-3),    
+    q75__Papp_SI = q75_Clearapparent / (SA_SI*1e-3),    
+    
+    median__Clear_OATP2B1c = median_ClearOATP2B1I / (median_SFOATP2B1I*VI_L),  
+    q25__Clear_OATP2B1c = q25_ClearOATP2B1I / (q25_SFOATP2B1I*VI_L),  
+    q75__Clear_OATP2B1c = q75_ClearOATP2B1I / (q75_SFOATP2B1I*VI_L),  
+    
+    median__Clear_OATP1B1c = median_ClearOATP1B1 / (median_SFOATP1B1*VL_ic*median_fuLec),
+    q25__Clear_OATP1B1c = q25_ClearOATP1B1 / (q25_SFOATP1B1*VL_ic*q25_fuLec),
+    q75__Clear_OATP1B1c = q75_ClearOATP1B1 / (q75_SFOATP1B1*VL_ic*q75_fuLec),
+    
+    median__Clear_OATP1B3c = median_ClearOATP1B3 / (median_SFOATP1B3*VL_ic*median_fuLec),
+    q25__Clear_OATP1B3c = q25_ClearOATP1B3 / (q25_SFOATP1B3*VL_ic*q25_fuLec),
+    q75__Clear_OATP1B3c = q75_ClearOATP1B3 / (q75_SFOATP1B3*VL_ic*q75_fuLec),
+    
+    median__Clear_NTCPc = median_ClearNTCP / (median_SFNTCP*VL_ic*median_fuLec),   
+    q25__Clear_NTCPc = q25_ClearNTCP / (q25_SFNTCP*VL_ic*q25_fuLec),    
+    q75__Clear_NTCPc = q75_ClearNTCP / (q75_SFNTCP*VL_ic*q75_fuLec),    
+    
+    median__Clear_BSEPc = median_ClearBSEP / (median_SFBSEP*VL_ic),
+    q25__Clear_BSEPc = q25_ClearBSEP / (q25_SFBSEP*VL_ic),
+    q75__Clear_BSEPc = q75_ClearBSEP / (q75_SFBSEP*VL_ic),
+    
+    median__Clear_OAT3c = median_ClearOAT3 / (median_SFOAT3*VPT*median_fuPTec),
+    q25__Clear_OAT3c = q25_ClearOAT3 / (q25_SFOAT3*VPT*q25_fuPTec),
+    q75__Clear_OAT3c = q75_ClearOAT3 / (q75_SFOAT3*VPT*q75_fuPTec),
+    
+    median__Clear_OAT1c = median_ClearOAT1 / (median_SFOAT1*VPT*median_fuPTec),
+    q25__Clear_OAT1c = q25_ClearOAT1 / (q25_SFOAT1*VPT*q25_fuPTec),
+    q75__Clear_OAT1c = q75_ClearOAT1 / (q75_SFOAT1*VPT*q75_fuPTec),
+    
+    median__Clear_OAT4c = median_ClearOAT4 / (median_SFOAT4*VPT*median_fuPTL),
+    q25__Clear_OAT4c = q25_ClearOAT4 / (q25_SFOAT4*VPT*q25_fuPTL),
+    q75__Clear_OAT4c = q75_ClearOAT4 / (q75_SFOAT4*VPT*q75_fuPTL)
+  ) |> 
+  pivot_longer(!c(PFAS, Category_OECD, MW, n_C),
+               names_to = "Parameter", 
+               values_to = "Value") |> 
+  separate(Parameter, into = c("stat", "Parameter"), sep = "__") |> 
+  separate(stat, into = c("stat1", "Parameter2"), sep = "_") |> 
+  mutate(Parameter = ifelse(!is.na(Parameter), Parameter, Parameter2)) |> 
+  select(!Parameter2) |> 
+  pivot_wider(names_from = stat1, values_from = Value) |> 
+  mutate(Parameter = str_replace_all(Parameter,
+    c("SFOATP2B1I"="SF_OATP2B1_I",
+      "SFOATP2B1"="SF_OATP2B1" ,
+      "SFOATP1B3"= "SF_OATP1B3",
+      "SFOATP1B1"="SF_OATP1B1",
+      "SFNTCP"="SF_NTCP",    
+      "SFBSEP"="SF_BSEP",
+      "SFOAT1"="SF_OAT1",           
+      "SFOAT3"="SF_OAT3",
+      "SFOAT4"="SF_OAT4",
+      "fuPTL"="fu_PTL",
+      "fuLec"="fu_L_ec",
+      "fuPTec"="fu_PT_ec"   
+    ))) |> 
+  filter_out(Parameter %in% c(
+    "Clearapparent", "ClearOATP2B1I",
+    "ClearuptakeI",  "ClearOATP1B1",  
+    "ClearOATP1B3",  "ClearOATP2B1L", 
+    "ClearNTCP",     "ClearBSEP",     
+    "ClearOAT3",        "ClearOAT1",     "ClearOAT4")
+    )
+  
+  write.csv(Selected_final_P, here(OUTPUT, "Calibrated_P.csv"), row.names = FALSE)
+
 Parameters_plot <- ggplot() +
   geom_pointrange(data = Visualise_P,
                   aes(x = reorder(PFAS, MW),
@@ -1119,7 +1234,7 @@ Key_params_plot <- ggplot() +
   theme(axis.text.x = element_text(angle = 90))
 
 
-Key_params_plot = Key_params_plot + CP_theme +
+Key_params_plot <- Key_params_plot + CP_theme +
   theme(axis.text.x = element_text(angle = 90))
 
 ggsave(plot = Key_params_plot,
@@ -1168,6 +1283,7 @@ CL_MesPred_plot <- ggplot() +
              labeller = as_labeller(c("CLfe" = "Biliary/ fecal",
                                       "CLur" = "Renal")),
              scales = "free_y") +
+  labs(x = "",y = "Clearance (L/day) (log10 scale)")+
   theme_quick
 
 

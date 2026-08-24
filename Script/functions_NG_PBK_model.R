@@ -8,7 +8,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
   with(as.list(c(parm.chem, parm.phys)), {
     # Physiological ----
     
-    VI_L <- VILc * BW                # L, Volume of intestinal lumen
+    VI_L <- VILc * BW               # L, Volume of intestinal lumen
     VI <- VIc * BW                  # L, Volume of intestine
     SA_SI <- SA_SIc * BW
     
@@ -35,9 +35,9 @@ Calc_final_params <- function(parm.chem, parm.phys){
     QTotc <- 0.988
     QI <- QIc/QTotc * QC            # L/d, Intestinal
     QL <- QLc/QTotc * QC            # L/d, Liver
-    QK <- QKc/QTotc * QC             # L/d, Kidney
-    QA <- QAc/QTotc * QC             # L/d, Adipose 
-    QR <- QC - (QA + QI + QK + QL)   # L/d, Rest
+    QK <- QKc/QTotc * QC            # L/d, Kidney
+    QA <- QAc/QTotc * QC            # L/d, Adipose 
+    QR <- QC - (QA + QI + QK + QL)  # L/d, Rest
     
     QUr <- QUrc * BW                # L/d, Urine flow rate to the bladder 22 mL/kg BW/d [ICRP 89 page 161]
     GFR <- GFR 
@@ -56,15 +56,15 @@ Calc_final_params <- function(parm.chem, parm.phys){
     
     
     # albumin concentrations in different matrices; Akihiro Tojo and Satoshi Kinugasa 2012 doi:10.1155/2012/481520
-    Calb_P <- 40         # (35-50) g/L plasma
-    Calb_PTL <- 0.84     #  (0.01-1.12) g/L proximal tubule lumen
-    Calb_L_ec <- 18.60      #18.60   # (12-40) g/L liver extracellular  
-    Calb_PT_ec <- 18.60     #18.60   # (12-40) g/L liver extracellular  
+    Calb_P <- 40          # (35-50) g/L plasma
+    Calb_PTL <- 0.84      #  (0.01-1.12) g/L proximal tubule lumen
+    Calb_L_ec <- 18.60    # (12-40) g/L liver extracellular  
+    Calb_PT_ec <- 18.60   # (12-40) g/L liver extracellular  
     
     
     # calculate albumin ratio; based on the Poulin and Theil 2009, below Table 6
-    PMR_PTL <- Calb_P/Calb_PTL   # plasma to proximal tubule lumen albumin ratio
-    PMR_L_ec <- Calb_P/Calb_L_ec # plasma to liver albumin ratio
+    PMR_PTL <- Calb_P/Calb_PTL     # plasma to proximal tubule lumen albumin ratio
+    PMR_L_ec <- Calb_P/Calb_L_ec   # plasma to liver albumin ratio
     PMR_PT_ec <- Calb_P/Calb_PT_ec # plasma to liver albumin ratio
 
     ## fraction unbound ----
@@ -72,7 +72,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
     
     DAlb <- 1.36                 # kg/L density of albumin
     D_ALB <- k_ALB*DAlb          # L_w/L_hsa; distribution coefficient
-    FV_Alb <- Calb_P*10^-3         # kg/kg of albumin in serum
+    FV_Alb <- Calb_P*10^-3       # kg/kg of albumin in serum
     
     DGlob <- 1.20                # kg/L density of globulin
     D_Glob <- k_GLOB*DGlob       # L_w/L_hsa; distribution coefficient
@@ -85,8 +85,8 @@ Calc_final_params <- function(parm.chem, parm.phys){
     
     # calculate fraction unbound in different matrices; 
     # based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
-    fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))   # proximal tubule lumen
-    fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup)) # liver extracellular space
+    fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))       # proximal tubule lumen
+    fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup))    # liver extracellular space
     fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # liver extracellular space
     
     
@@ -151,50 +151,41 @@ Calc_final_params <- function(parm.chem, parm.phys){
     ## clearances ----
     
     # intestine
-    Clear_apparent <- (Papp_SI*SA_SI*1e-3)     # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
+    Clear_apparent <- (Papp_SI*SA_SI*1e-3)                     # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
     
-    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I*VI_L  # L/d, active uptake, it is assume0d that the fraction unbound is 1 
+    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
     
     Clear_uptake_I <- (Clear_apparent+Clear_OATP2B1_I) 
     
-    # liver
-    Clear_OATP1B1 <- Clear_OATP1B1c*SF_OATP1B1*VL_ic*fu_L_ec  #1 # L/d
-    Clear_OATP1B3 <- Clear_OATP1B3c*SF_OATP1B3*VL_ic*fu_L_ec  #1 # L/d
-    Clear_OATP2B1_L <- Clear_OATP2B1c*SF_OATP2B1*VL_ic*fu_L_ec #1# L/d
-    Clear_NTCP <- Clear_NTCPc*SF_NTCP*VL_ic*fu_L_ec           #1 # L/d    
-    Clear_BSEP <- Clear_BSEPc*SF_BSEP*VL_ic  # L/d, it is assumed that fraction unbound is 1 as binding proteins (albumin in this case) are in the interstitium so not in the cells
+    # liver 
+    Clear_OATP1B1 <- Clear_OATP1B1c*SF_OATP1B1*VL_ic*fu_L_ec   # L/d
+    Clear_OATP1B3 <- Clear_OATP1B3c*SF_OATP1B3*VL_ic*fu_L_ec   # L/d
+    Clear_OATP2B1_L <- Clear_OATP2B1c*SF_OATP2B1*VL_ic*fu_L_ec # L/d
+    Clear_NTCP <- Clear_NTCPc*SF_NTCP*VL_ic*fu_L_ec            # L/d    
+    Clear_BSEP <- Clear_BSEPc*SF_BSEP*VL_ic                    # L/d, it is assumed that fraction unbound is 1 as binding proteins (albumin in this case) are in the interstitium so not in the cells
     
-    CF_L_uptake <- (QI + QL)/(Clear_OATP1B1 + 
-                             Clear_OATP1B3 + 
-                             Clear_OATP2B1_L + 
-                             Clear_NTCP)
-
-        Clear_uptake_L <- (Clear_OATP1B1 +
-                         Clear_OATP1B3 + 
+    Clear_uptake_L <- (Clear_OATP1B1 + 
+                         Clear_OATP1B3 +               
                          Clear_OATP2B1_L +
                          Clear_NTCP) 
     
-       Clear_excretion_L <- Clear_BSEP 
+    Clear_excretion_L <- Clear_BSEP 
     
     # kidney
     
     GFR <- GFR*fup
     
-    Clear_OAT3 <- Clear_OAT3c*SF_OAT3*VPT*fu_PT_ec  #* 0.1# L/d 
-    Clear_OAT1 <- Clear_OAT1c*SF_OAT1*VPT*fu_PT_ec  #* 0.1# L/d 
-    Clear_OAT4 <- Clear_OAT4c*SF_OAT4*VPT*fu_PTL  #* 0.1# L/d 
+    Clear_OAT3 <- Clear_OAT3c*SF_OAT3*VPT*fu_PT_ec            # L/d 
+    Clear_OAT1 <- Clear_OAT1c*SF_OAT1*VPT*fu_PT_ec            # L/d 
+    Clear_OAT4 <- Clear_OAT4c*SF_OAT4*VPT*fu_PTL              # L/d 
     
     # calculate net reabsorption (difference between active elimination and reabsorption)
-    Clear_net_reabsorption_unscaled <- Clear_OAT4 - (Clear_OAT1 + Clear_OAT3)
-    
-    CF_K_reabsorption <- QK/Clear_net_reabsorption_unscaled
-    CF_K_reabsorption_corrected <- ifelse(CF_K_reabsorption < 1, CF_K_reabsorption, 1)
-    
-    Clear_reabsorption <- Clear_net_reabsorption_unscaled 
-    
+    Clear_reabsorption_initial <- Clear_OAT4 - (Clear_OAT1 + Clear_OAT3)
+    Clear_reabsorption <- ifelse(Clear_reabsorption_initial > 0, 
+                                 Clear_reabsorption_initial, 0)
     
     # Clearance via menstruation
-    Qmenses <- Qmenses  # L/d
+    Qmenses <- Qmenses                                        # L/d
     
     
     return(list(
@@ -262,7 +253,6 @@ Calc_final_params <- function(parm.chem, parm.phys){
       Clear_OAT3 = Clear_OAT3,
       Clear_OAT1 = Clear_OAT1,
       Clear_OAT4 = Clear_OAT4,
-      Clear_net_reabsorption_unscaled = Clear_net_reabsorption_unscaled,
       Clear_reabsorption = Clear_reabsorption,
       
       Qmenses = Qmenses
