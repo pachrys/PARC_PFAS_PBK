@@ -1335,7 +1335,7 @@ ObsVsPred_Plasma_plot <- ggplot() +
   geom_point(data = C_plasma_measured_df, #filter(C_plasma_measured_df, Category_OECD == "PFCAs"),
              aes(Time/365, Value),
              colour = "black",
-             size = 0.1) +
+             size = 0.05) +
   labs(x = "Time (years)",
        y = "Concentration (μg/ml)") +
   facet_wrap(~ factor(PFAS, c( #factor(n_C),
@@ -1357,7 +1357,8 @@ ObsVsPred_Plasma_plot <- ggplot() +
     "PFDoDA",
     "PFTrDA")
   ),
-  nrow = 2) +
+  nrow = 2,
+  scales = "free_y") +
   theme_quick
 
 
@@ -1365,23 +1366,116 @@ ObsVsPred_Plasma_plot <- ObsVsPred_Plasma_plot + Patchwork_theme +
   theme(legend.position = "bottom")
 
 ggsave(plot = ObsVsPred_Plasma_plot,
-       file = here(OUTPUT, "CP_plot_UA.png"),
+       file = here(OUTPUT, "CP_plot_UA_FreeY.png"),
        dpi = 600,
        width = 24,
-       height = 11,
+       height = 8,
        units = "cm")
 
 
 
 
 
+Ratios <- C_df |>
+  select(!"...1") |> 
+  filter(Tissue %in% c("Plasma", "Kidney", "Liver"),
+         PFAS %in% c("PFOA", "PFNA", "PFHxS", "PFOS")) |> 
+  mutate(Time = Time/10) |> 
+  filter(Time > 0.2) |> 
+  pivot_longer(median:q75, names_to = "stat", values_to = "Value") |> 
+  pivot_wider(names_from = Tissue, values_from = Value) |> 
+  mutate("LPR" = Liver/Plasma,
+         "KPR" = Kidney/Plasma) |> 
+  select(!c(Kidney, Liver, Plasma)) |> 
+  pivot_longer(LPR:KPR, names_to = "Tissue", values_to = "Value") |> 
+  pivot_wider(names_from = stat, values_from = Value) 
+
+KPR <- Ratios |> 
+  filter(Tissue == "KPR") |>  
+  group_by(PFAS) |>
+  summarise(across(median:q75, .fns =
+                   list(median = ~median(.,na.rm = TRUE),
+                        mean = ~mean(.,na.rm = TRUE),
+                        q25 = ~quantile(., 0.25, na.rm = TRUE),
+                        q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
+  pivot_longer(!PFAS, 
+               names_to = "Variable",
+               values_to = "Value") |> 
+  filter(Variable %in% c("median_median",
+                         "q25_q25",
+                         "q75_q75")) |> 
+  separate(Variable, into = c("Keep", "not")) |> 
+  select(!not) |> 
+  pivot_wider(names_from = Keep, values_from = Value) |> 
+  mutate(Parameter = "KPR")
+
+LPR <- Ratios |> 
+  filter(Tissue == "LPR") |>  
+  group_by(PFAS) |>
+  summarise(across(median:q75, .fns =
+                     list(median = ~median(.,na.rm = TRUE),
+                          mean = ~mean(.,na.rm = TRUE),
+                          q25 = ~quantile(., 0.25, na.rm = TRUE),
+                          q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
+  pivot_longer(!PFAS, 
+               names_to = "Variable",
+               values_to = "Value") |> 
+  filter(Variable %in% c("median_median",
+                         "q25_q25",
+                         "q75_q75")) |> 
+  separate(Variable, into = c("Keep", "not")) |> 
+  select(!not) |> 
+  pivot_wider(names_from = Keep, values_from = Value) |> 
+  mutate(Parameter = "LPR")
+
+Ratios <- rbind(KPR, LPR)
+
+Measured_ratios <- Measured_df |>
+  filter(Parameter %in% c("RK/P", "RL/P")) |> 
+  select(PFAS, Parameter, Value, Range_CV_Std_min, Range_CV_Std_max) |> 
+  rename(min = Range_CV_Std_min,
+         max = Range_CV_Std_max) |> 
+  mutate(Parameter = str_replace_all(Parameter, c("RK/P" = "KPR",
+                                                  "RL/P" = "LPR"))) |> 
+  mutate(min = as.numeric(min),
+         max = as.numeric(max),
+         Value = as.numeric(Value))
+
+
+ObsVsPred_Ratios_plot <- ggplot() +
+  geom_pointrange(data = Ratios,
+                aes(x = PFAS,
+                    y = median,
+                    ymin = q25,
+                    ymax = q75),
+                size = .1,
+                linewidth = .1,
+                colour = "purple") + 
+  geom_point(data = Measured_ratios,
+                  aes(x = PFAS,
+                      y = Value),
+                  # width = .01,
+                  colour = "black"
+                  ) +
+  facet_wrap(~Parameter, 
+             labeller = as_labeller(c("KPR" = "Kidney/Plasma ratio",
+                                      "LPR" = "Liver/Plasma ratio"))
+             ) +
+  labs(x = "",
+       y = "Tissue / Plasma ratio",
+       subtitle = "Purple: predicted; Black:measured ")
+  theme_quick
 
 
 
+ObsVsPred_Ratios_plot <- ObsVsPred_Ratios_plot + CP_theme 
 
-
-
-
+ggsave(plot = ObsVsPred_Ratios_plot,
+       file = here(OUTPUT, "ObsVsPred_Ratios_plot.png"),
+       dpi = 600,
+       width = 12,
+       height = 9,
+       units = "cm")
 
 
 
