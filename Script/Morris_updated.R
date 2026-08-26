@@ -212,7 +212,7 @@ run_Morris <- function(parms){
               InMB = Dose_ug_day)
   
   
-  pars <- Morris_Calc_final_params(parms = parms)
+  pars <- GSA_Calc_final_params(parms = parms)
   
   # save parameters to check when analysing results
   run_pars <- as.data.frame(pars)

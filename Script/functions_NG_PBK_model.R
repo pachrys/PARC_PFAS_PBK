@@ -1,7 +1,7 @@
 # File containing model functions
 
 # function to calculate the final parameters for Morris test (combines physchem and physiological parameters)
-Morris_Calc_final_params <- function(parms){
+GSA_Calc_final_params <- function(parms){
   with(as.list(c(parms)), {
     # Physiological ----
     
