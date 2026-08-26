@@ -170,7 +170,10 @@ calc_TK_summary_results <- function(raw_TK_results){
                        list(median = ~median(.,na.rm = TRUE),
                             mean = ~mean(.,na.rm = TRUE),
                             q25 = ~quantile(., 0.25, na.rm = TRUE),
-                            q75 = ~quantile(.,0.75, na.rm = TRUE)))) |>
+                            q75 = ~quantile(.,0.75, na.rm = TRUE),
+                            min = ~min(.,na.rm = TRUE),
+                            max = ~max(.,na.rm = TRUE)
+                            ))) |>
     pivot_longer(everything(), names_to = "Variable",
                  values_to = "Value")  |>
     separate(Variable,
@@ -180,9 +183,9 @@ calc_TK_summary_results <- function(raw_TK_results){
   return(Results_all)
 }
 
-calc_C_summary <- function(Results_df, Tissue_j){
+calc_C_summary <- function(C_all_df, Tissue_j){
   
-  C_df <- Results_df |> filter(Tissue == Tissue_j)
+  C_df <- C_all_df |> filter(Tissue == Tissue_j)
   C_wide_df <- C_df |> select(!PFAS) |>
     mutate(Iteration = paste0("n_", Iteration)) |>
     pivot_wider(names_from = Iteration, values_from = Concentration)
@@ -193,12 +196,15 @@ calc_C_summary <- function(Results_df, Tissue_j){
                        list(median = ~median(.,na.rm = TRUE),
                             mean = ~mean(.,na.rm = TRUE),
                             q25 = ~quantile(., 0.25, na.rm = TRUE),
-                            q75 = ~quantile(.,0.75, na.rm = TRUE))))  |>
+                            q75 = ~quantile(.,0.75, na.rm = TRUE),
+                            min = ~min(.,na.rm = TRUE),
+                            max = ~max(.,na.rm = TRUE)
+                            )))  |>
     pivot_longer(everything(), names_to = "Variable",
                  values_to = "Value") |>
     separate(Variable,
-             into = c("Time", "Variable")) |>
-    mutate(Time = as.numeric(str_replace(Time, "V", ""))) |>
+             into = c("ID", "Variable")) |>
+    mutate(ID = as.numeric(str_replace(ID, "V", ""))) |>
     # mutate(Time = (Time*10)/365) |>  #unit correction, to years
     pivot_wider(names_from = Variable, values_from = Value)
   
@@ -209,7 +215,7 @@ plot_per_tissue <- function(C_sum){
   
   Tissue_i <- unique(C_sum$Tissue)
   
-  C_plot <- ggplot(C_sum, aes(Time/365, median)) +
+  C_plot <- ggplot(C_sum, aes(Time, median)) +
     geom_ribbon(aes(ymin = q25,
                     ymax = q75),
                 fill = "grey70") +
@@ -225,7 +231,7 @@ plot_per_tissue <- function(C_sum){
 
 plot_all_tissues <- function(C_ts){
   
-  C_ts_plot <- ggplot(C_ts, aes(Time/365, median)) +
+  C_ts_plot <- ggplot(C_ts, aes(Time, median)) +
     geom_ribbon(aes(ymin = q25,
                     ymax = q75),
                 fill = "grey70") +

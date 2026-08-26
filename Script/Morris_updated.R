@@ -19,6 +19,8 @@ library(pracma)
 library(viridis)
 library(lhs)
 library(data.table)
+library(sensitivity)
+library(ggrepel)
 
 
 # For plotting
@@ -72,8 +74,39 @@ theme_quick <- theme_minimal() +
     legend.position = "right"
   )
 
+Patchwork_theme <- theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 50, face = "bold", margin = margin(0, 0, b = 0.5, 0)),
+    plot.subtitle = element_text(hjust = 0, size = 35, margin = margin(0, 0, b = 0.5, 0)),
+    plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"),
+    plot.title.position = "plot",
+    panel.background = element_blank(), #rect(fill = 'white', color = NA)
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    panel.grid = element_line(color = "grey90",linewidth = 0.1),
+    
+    axis.title = element_text(size = 45, face = "bold"),
+    axis.text.x = element_text(size = 35, face = "bold", margin = margin(0, 0, 0, 0)),
+    axis.text.y = element_text(size = 35, face = "bold", margin = margin(0, 0, 0, 0)),
+    axis.line = element_blank(), 
+    axis.ticks = element_blank(),
+    
+    legend.position = "bottom",
+    legend.title = element_blank(), 
+    legend.text = element_text(size = 35),
+    legend.margin = margin(0, 0, 0, 0, "cm"),
+    legend.key.spacing = unit(0.1, "cm"),
+    legend.key.size = unit(0.8, "lines"),
+    legend.spacing.y = unit(0.1, "cm"),
+    legend.spacing.x = unit(0.1, "cm"),
+    legend.background = element_rect(color = "black", fill = "white", linewidth = 0.1),
+    
+    # strip.text.x = element_blank()
+    strip.text = element_text(hjust = 0, size = 45, face = "bold", margin = margin(0,0,0,0))
+  )
+
+
 # Set output storage directory
-OUTPUT <- here("Output", "SA_Morris") 
+OUTPUT <- here("Output", "26August_Run_Morris") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -114,47 +147,53 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 
 
 ## All PBK parameters
-parm.phys <- c(
-  BW = 64.41978,
-  QC = 5486.301,
-  Hct = 0.3645031,
-  VIc = 0.016,
-  VILc = 0.03848451,
-  SA_SIc = 1099.557,
-  VLc = 0.02458126,
-  VL_icc = 0.835,
-  VL_ecc = 0.161,
-  VKc = 0.004630086,
-  VPTc = 0.398,
-  VPTTc = 0.5470631,
-  VPTLc = 0.403,
-  VRKLc = 0.283,
-  VAc = 0.3426787,
-  MAc = 1.487552,
-  VPc = 0.065,
-  QIc = 0.165,
-  QLc = 0.06857434,
-  QKc = 0.1761446, 
-  QAc = 0.09413654,
-  QUrc = 0.022, 
-  GFR = 193.2765, # = 0.2*0.1761446*5486.301, #156.6414, 
-  QTc = 0.36, 
-  tco = 3.36,
-  Qmenses = 0.0008561644)
+SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
+# 
+# parm.phys <- c(
+#   BW = 64.41978,
+#   QC = 5486.301,
+#   Hct = 0.3645031,
+#   VIc = 0.016,
+#   VILc = 0.03848451,
+#   SA_SIc = 1099.557,
+#   VLc = 0.02458126,
+#   VL_icc = 0.835,
+#   VL_ecc = 0.161,
+#   VKc = 0.004630086,
+#   VPTc = 0.398,
+#   VPTTc = 0.5470631,
+#   VPTLc = 0.403,
+#   VRKLc = 0.283,
+#   VAc = 0.3426787,
+#   MAc = 1.487552,
+#   VPc = 0.065,
+#   QIc = 0.165,
+#   QLc = 0.06857434,
+#   QKc = 0.1761446,
+#   QAc = 0.09413654,
+#   QUrc = 0.022,
+#   GFR = 193.2765, # 144 - 288 L/day (=0.2*0.1761446*5486.301)
+#   QTc = 0.36,
+#   tco = 3.36,
+#   Qmenses = 0.0008561644,
+#   Calb_P = 40 # 35-50 g/L plasma
+#   )
+
+
 
 
 ## MC parameters
-SA_TK_params <- read_xlsx(here("Input", "SA_TK_Parameters.xlsx")) |>
-  mutate(Predicted = ifelse(Specific == "calculated", "yes", Predicted))|>
-  filter(Predicted == "yes") |>
-  select(PFAS, Parameter, Value, SD, Distribution)
+SA_TK_params <- read_xlsx(here("Input", "TK_Parameters.xlsx")) |>
+  filter(Predicted == "yes") 
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))
 
 
 # Function to run the morris design
-run_Morris <- function(parms, Dose_ug_day){
+run_Morris <- function(parms){
+  
+  Dose_ug_day = 0.1
   
   A_init <- c(AIL = Dose_ug_day,
               AI = 0, 
@@ -179,7 +218,7 @@ run_Morris <- function(parms, Dose_ug_day){
   run_pars <- as.data.frame(pars)
   
   PBK.out <- lsoda(y = A_init,
-                   times = seq(0, 3650, by = 1), 
+                   times = seq(0, 365*3, by = 1), 
                    func = PBK.model,
                    parms = pars,
                    rtol = 1e-4,        
@@ -190,16 +229,36 @@ run_Morris <- function(parms, Dose_ug_day){
   PBK_OUTPUT <- as.data.frame(PBK.out) 
   PBK_OUTPUT[,-1] <- pmax(PBK_OUTPUT[,-1], 0)
 
-  PBK_OUTPUT <- cbind(PBK_OUTPUT, run_pars)
+  data <- PBK_OUTPUT |> drop_na() 
   
-  return(PBK_OUTPUT)
+  # AUC ----
+  AUC <- trapz(data$time, data$CP) # ng * day/ml
   
+  # Cmax, Tmax, Tlast ----
+  Cmax <- max(data$CP) # ng/ml
+  Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
+  Tlast <- filter(data, CP > 1e-9) |> select(time) |> last() |> pull() # 1e-9 ng/ml is already a very small number
+  
+  # calculate half life ----
+  elimination_phase <- data |>
+    filter(time >= Tmax & time <= Tlast) |>
+    mutate(logCP = log(CP))
+  
+  # linear regression to find the slope
+  elimination_model <- lm(logCP ~ time, data = elimination_phase)
+  
+  # calculate elimination constant (i.e. slope of the line)
+  kel <- -elimination_model$coefficients[[2]]
+  
+  # calculate the half-life
+  half_life <- (log(2) / kel) / 365 # unit correction to years
+  
+  return( c(Cmax=Cmax, 
+            half_life = half_life, 
+            AUC = AUC))
 }
 
-Morris_PFAS_design <- list()
-Morris_PFAS_RESULTS <- list()
-Morris_PFAS_y <- list()
-Morris_PFAS_savey <- list()#
+
 
 for (i in 1:nPFAS) {
   
@@ -209,107 +268,102 @@ for (i in 1:nPFAS) {
   message(glue("{PFAS_i}------------------------------------"))
   
   # physiological parameters; they are kept fix
-  PhysTK_params <- tibble(
-    Parameter = names(parm.phys),
-    Value = parm.phys,
-    binf = Value - (0.1*Value),
-    bsup = Value + (0.1*Value)
+  Physio_params <- tibble(
+    Parameter = SA_Physio_params$Abbreviation,
+    Value = SA_Physio_params$Value,
+    binf = SA_Physio_params$Binf,
+    bsup = SA_Physio_params$Bsup
   )
-  
-  Dose_ug_day <- filter(Dose_df, PFAS == PFAS_i) |> 
+
+  Dose_ug_day <- filter(Dose_df, PFAS == PFAS_i) |>
     select(Dose) |> pull()
-  
-  PhysChemTK_params <- SA_TK_params |> 
-    filter(PFAS == PFAS_i) |> 
-    select(!PFAS) |> 
-    transmute(Parameter = Parameter,
-              Value = Value,
-              binf = ifelse(Distribution == "lognormal", 
-                            exp(Value) - (0.1*exp(Value)), 
-                            Value - SD),
-              bsup = ifelse(Distribution == "lognormal", 
-                            exp(Value) + (0.1*exp(Value)), 
-                            Value + SD)) |> 
-    mutate(binf = ifelse(binf <= 0, 1e-10, binf))
-  
-  Model_params <- rbind(PhysTK_params, PhysChemTK_params)
-  
+
+  PhysChemTK_params <- SA_TK_params |>
+    filter(PFAS == PFAS_i) |>
+    mutate(Value = ifelse(PBK_mechanism == "Distribution", exp(Value),
+                          ifelse(PBK_mechanism == "Absorption", exp(Value),
+                                 Value)
+                          ),
+           binf = min,
+           bsup = max
+           ) |>
+    select(Parameter, Value, binf, bsup)
+
+  Model_params <- rbind(Physio_params, PhysChemTK_params)
+
   Morris_parms <- Model_params$Parameter
   binf <- Model_params$binf
   bsup <- Model_params$bsup
-  Morris_factors <- length(Morris_parms) 
-  
-  ## Morris experiment design ---- 
+  Morris_factors <- length(Morris_parms)
+
+  ## Morris experiment design ----
 
   set.seed(10010) # set seeds for reproducibility
-  n = 1000 # number of samples per parameter
-  
+
   # Experiment design
   Morris_design <- list(type = "oat", levels = 6, grid.jump = 3)
-  
+
   # Repetitions
-  Morris_r <- 5
-  
+  Morris_r <- 100
+    
   # Morris test function
-  Experience <- morris(model =  NULL, 
+  Experience <- morris(model =  NULL,
                        factors = Morris_factors, # number of parameters
                        r = Morris_r,  # number of repetitions
-                       design = Morris_design,  
-                       binf = binf,  
-                       bsup = bsup, 
+                       design = Morris_design,
+                       binf = binf,
+                       bsup = bsup,
                        scale = TRUE)
   
-
+  
   # create the final MC design and remove infinite values if any
-  Morris_design <- Experience$X |> 
-    as.data.frame() |> 
-    mutate(across(everything(), ~na_if(., Inf))) |> 
+  Morris_design <- Experience$X |>
+    as.data.frame() |>
+    mutate(across(everything(), ~na_if(., Inf))) |>
     drop_na()
   colnames(Morris_design) <- Morris_parms
 
   # visualise and save design
-  Design_plot <- Morris_design |>  
-    pivot_longer(everything(), 
-                         names_to = "Parameter", 
-                         values_to = "Value") |> 
+  Design_plot <- Morris_design |>
+    pivot_longer(everything(),
+                         names_to = "Parameter",
+                         values_to = "Value") |>
     ggplot(aes(x=Value))+
     geom_histogram()+
     facet_wrap(~Parameter, scales = "free_y")+
     coord_flip()+
-    labs(title = paste0(PFAS_i," Morris parameter distributions"),
+    labs(title = paste0(PFAS_i," Morris test parameter distributions"),
          y = "Frequency",
          x = "Value (different unit per parameter)") +
-    theme_quick 
+    theme_quick
   Design_plot
-  
-  Design_plot <- Design_plot + CP_theme +
+
+  Design_plot <- Design_plot + Patchwork_theme +
     theme(axis.text.x = element_text(angle = 0))
-  
+
   ggsave(plot = Design_plot,
          file = here(OUTPUT, paste0(PFAS_i,"_Morris_ExpDesign.png")),
          dpi = 600,
-         width = 22,
-         height = 18,
+         width = 34,
+         height = 24,
          units = "cm")
-  
-  write.csv(Morris_design, 
-            file = here(OUTPUT, paste0(PFAS_i,"_Morris_ExpDesign.csv")), 
+
+  write.csv(Morris_design,
+            file = here(OUTPUT, paste0(PFAS_i,"_Morris_ExpDesign.csv")),
             row.names = FALSE)
-  
-  results <- apply(Morris_design, 1, function(row) {
-    run_Morris(row,
-               Dose_ug_day = Dose_ug_day)
-  })
+
+  results <- apply(Morris_design, 1,  run_Morris)
 
   y <- results
-  savey <- mapply(cbind, y,
-                  "Iteration" = seq(1,length(y), by = 1),
-                  "PFAS" = PFAS_i,
-                  SIMPLIFY = FALSE)
+  savey = y
+  # savey <- mapply(cbind, y,
+  #                 "Iteration" = seq(1,length(y), by = 1),
+  #                 "PFAS" = PFAS_i,
+  #                 SIMPLIFY = FALSE)
   save(savey, file = here(OUTPUT, paste0(PFAS_i,"_Morris_y.RData")))
 
-  Morris_PFAS_savey[[i]] <- savey
-  
+  # load(here(OUTPUT, paste0(PFAS_i,"_Morris_y.RData")))
+  # y <- savey
   y <- t(y) %>% na.omit() %>% t()
   sim.results.morris <- as.matrix(y)
   
@@ -326,8 +380,8 @@ for (i in 1:nPFAS) {
   }
   
   Experience$ee <- Experience$ee %>% na.omit() 
-  print(PFAS)
-  plot(Experience)
+  plot(Experience, main = paste0(PFAS_i))
+  print(PFAS_i)
   print(Experience)
   
   rownames( mu.star ) = rownames( mu ) = rownames( sigma ) = row.names(sim.results.morris)
@@ -345,54 +399,130 @@ for (i in 1:nPFAS) {
   )
   
   IGlobal <- data.frame(IGlobal_sigma, IGlobal_mu.star) 
+  rownames(IGlobal) <- Morris_parms
   IGlobal <- IGlobal %>% mutate(parm_names = rownames(IGlobal),
-                                PFAS = PFAS)
+                                PFAS = PFAS_i)
   
-  Morris_PFAS_RESULTS[[i]] <- IGlobal
-  
-  Morris_indices <- list(
-    mu = mu,
-    mu_star = mu.star,
-    sigma = sigma,
-    mu_star_scale = mu.star_scale,
-    sigma_scale = sigma_scale,
-    IGlobal = IGlobal
-  )
-  print(IGlobal)
-  
-  write.csv(Morris_indices, here(OUTPUT,paste0(PFAS, "_Morris_indices.csv")), row.names = FALSE)
+  write.csv(IGlobal, here(OUTPUT,paste0(PFAS_i, "_Morris_indices.csv")), row.names = FALSE)
   
   }
+
+
+for (i in 1:nPFAS) {
   
-names(Morris_PFAS_savey) <= names(Morris_PFAS_RESULTS) <- PFAS_list
+  PFAS_i <- PFAS_list[i]
+  message(glue("{PFAS_i}------------------------------------"))
+  
+  data <- read.csv(here(OUTPUT,paste0(PFAS_i, "_Morris_indices.csv")))
+  # load(here(OUTPUT,paste0(PFAS_i, "_Morris_indices.RData")))
+  morris_data <- data |> #Morris_indices$IGlobal |> 
+    arrange(desc(IGlobal_mu.star)) %>% 
+    mutate(n = seq(from=1, to=50, by=1)) 
+  write.csv(morris_data, here(OUTPUT,paste0(PFAS_i, "_arranged_Morris_indices.csv")), row.names = FALSE)
+  
+  # 
+  # morris_plot <- morris_data %>% filter(IGlobal_mu.star > 1) %>% 
+  #   ggplot(aes(x = IGlobal_mu.star, y = IGlobal_sigma, 
+  #              label = parm_names)) +
+  #   geom_jitter(width = .5, alpha = 0.7, size = 1)  +
+  #   geom_text_repel(aes(label = as.character(parm_names)), 
+  #                   size=15, 
+  #                   max.overlaps = Inf,
+  #                   # min.segment.length = 0.05,
+  #                   segment.size = 0.1
+  #   ) +
+  #   labs(
+  #     title = paste0(PFAS_i, " Morris elementary effects sensitivity analysis"),
+  #     subtitle = expression(paste("Parameters with μ* >= 1")),
+  #     x = expression(paste("Mean Effect (μ*)")),
+  #     y = expression(paste("Standard Deviation (σ)"))
+  #   ) +
+  #   theme_quick 
+  # morris_plot
+  # 
+  # morris_plot = morris_plot +
+  #   Patchwork_theme + 
+  #   theme(axis.text.x = element_text(angle = 0))
+  # 
+  # ggsave(plot = morris_plot,
+  #        file = here(OUTPUT, paste0(PFAS_i, "_morris_plot.png")),
+  #        dpi = 600,
+  #        width = 12,
+  #        height = 12,
+  #        units = "cm")
+  
+}
 
-Save_Morris_PBK_results <- rbindlist(Morris_PFAS_savey, 
-                                     idcol = "PFAS")
-Save_Morris_MorrisSA_results <- rbindlist(Morris_PFAS_RESULTS, 
-                                     idcol = "PFAS")
+
+Indices_df <-
+  list.files(path = here(OUTPUT),
+             pattern = "\\_arranged_Morris_indices.csv$") |>
+  map_df(~ read_csv(file = here(OUTPUT, .)))
 
 
+Wide_Indices_n_df <- Indices_df |> 
+  select(!c(IGlobal_sigma, IGlobal_mu.star)) |> 
+  mutate(parm_names = str_replace_all(parm_names,"_", "--")) |> 
+  pivot_wider(names_from = parm_names, values_from = n) |> 
+  summarise(across(where(is.numeric), .fns =
+                     list(mean = ~mean(.,na.rm = TRUE),
+                          min = ~min(.,na.rm = TRUE),
+                          max = ~max(.,na.rm = TRUE)
+                     ))) |>
+  pivot_longer(everything(), names_to = "Variable",
+               values_to = "Value") |> 
+  separate(Variable,
+           into = c("parm_names", "Variable"), 
+           sep = "_") |> 
+  mutate(parm_names = str_replace_all(parm_names, "--", "_")) |> 
+  pivot_wider(names_from = Variable, values_from = Value) |> 
+  rename(n_mean = mean,
+         n_min = min,
+         n_max = max)
 
 
+Wide_Indices_IGlobal_mu.star_df <- Indices_df |> 
+  select(!c(IGlobal_sigma, n)) |> 
+  mutate(parm_names = str_replace_all(parm_names,"_", "--")) |> 
+  pivot_wider(names_from = parm_names, values_from = IGlobal_mu.star) |> 
+  summarise(across(where(is.numeric), .fns =
+                     list(mean = ~mean(.,na.rm = TRUE),
+                          min = ~min(.,na.rm = TRUE),
+                          max = ~max(.,na.rm = TRUE)
+                     ))) |>
+  pivot_longer(everything(), names_to = "Variable",
+               values_to = "Value") |> 
+  separate(Variable,
+           into = c("parm_names", "Variable"), 
+           sep = "_") |> 
+  mutate(parm_names = str_replace_all(parm_names, "--", "_")) |> 
+  pivot_wider(names_from = Variable, values_from = Value) |> 
+  rename(mu_mean = mean,
+         mu_min = min,
+         mu_max = max)
 
 
+Wide_Indices_IGlobal_sigma_df <- Indices_df |> 
+  select(!c(IGlobal_mu.star, n)) |> 
+  mutate(parm_names = str_replace_all(parm_names,"_", "--")) |> 
+  pivot_wider(names_from = parm_names, values_from = IGlobal_sigma) |> 
+  summarise(across(where(is.numeric), .fns =
+                     list(mean = ~mean(.,na.rm = TRUE),
+                          min = ~min(.,na.rm = TRUE),
+                          max = ~max(.,na.rm = TRUE)
+                     ))) |>
+  pivot_longer(everything(), names_to = "Variable",
+               values_to = "Value") |> 
+  separate(Variable,
+           into = c("parm_names", "Variable"), 
+           sep = "_") |> 
+  mutate(parm_names = str_replace_all(parm_names, "--", "_")) |> 
+  pivot_wider(names_from = Variable, values_from = Value) |> 
+  rename(sd_mean = mean,
+         sd_min = min,
+         sd_max = max)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Wide_Indices_df <- full_join(Wide_Indices_n_df, Wide_Indices_IGlobal_mu.star_df)
+Wide_Indices_df <- full_join(Wide_Indices_df, Wide_Indices_IGlobal_sigma_df)
+write.csv(Wide_Indices_df, here(OUTPUT,"Processed_indices.csv"), row.names = FALSE)

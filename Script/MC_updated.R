@@ -105,7 +105,7 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "UA_GoF_22Aug") 
+OUTPUT <- here("Output", "25Aug_AsAbraham_n100") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -149,7 +149,7 @@ Dose_df <- tibble(
   mutate(Dose = ifelse(PFAS == "PFBS", 18.4,
                        ifelse(PFAS == "HFPO-DA" , 19.6,
                               Dose)))
-
+TIMES <- seq(0, 365*3, by = 1)
 # PFAS_list <- Dose_df$PFAS
 
 nPFAS <- length(PFAS_list)
@@ -163,39 +163,93 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
   mutate(across(-Tissue, as.numeric))
 
 
-## All PBK parameters
-parm.phys <- c(
-  BW = 64.41978,
-  QC = 5486.301,
-  Hct = 0.3645031,
-  VIc = 0.016,
-  VILc = 0.03848451,
-  SA_SIc = 1099.557,
-  VLc = 0.02458126,
-  VL_icc = 0.835,
-  VL_ecc = 0.161,
-  VKc = 0.004630086,
-  VPTc = 0.398,
-  VPTTc = 0.5470631,
-  VPTLc = 0.403,
-  VRKLc = 0.283,
-  VAc = 0.3426787,
-  MAc = 1.487552,
-  VPc = 0.065,
-  QIc = 0.165,
-  QLc = 0.06857434,
-  QKc = 0.1761446, 
-  QAc = 0.09413654,
-  QUrc = 0.022, 
-  GFR = 193.2765, # = 0.2*0.1761446*5486.301, #156.6414, 
-  QTc = 0.36, 
-  tco = 3.36,
-  Qmenses = 0.0008561644)
+## Physiological parameters
+Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
+
+parm.phys <- Physio_params$Value
+names(parm.phys) <- Physio_params$Abbreviation
+# parm.phys <- c(
+#   BW = 64.41978,
+#   QC = 5486.301,
+#   Hct = 0.3645031,
+#   VIc = 0.016,
+#   VILc = 0.03848451,
+#   SA_SIc = 1099.557,
+#   VLc = 0.02458126,
+#   VL_icc = 0.835,
+#   VL_ecc = 0.161,
+#   VKc = 0.004630086,
+#   VPTc = 0.398,
+#   VPTTc = 0.5470631,
+#   VPTLc = 0.403,
+#   VRKLc = 0.283,
+#   VAc = 0.3426787,
+#   MAc = 1.487552,
+#   VPc = 0.065,
+#   QIc = 0.165,
+#   QLc = 0.06857434,
+#   QKc = 0.1761446, 
+#   QAc = 0.09413654,
+#   QUrc = 0.022, 
+#   GFR = 193.2765, # = 0.2*0.1761446*5486.301, #156.6414, 
+#   QTc = 0.36, 
+#   tco = 3.36,
+#   Qmenses = 0.0008561644,
+#   Calb_P = 40)
 
 ## MC parameters
-MC_TK_params <- read_xlsx(here("Input", "UA_TK_Parameters.xlsx")) |> 
-  mutate(Predicted = ifelse(Specific == "calculated", "yes", Predicted))|>
+MC_TK_params <- read_xlsx(here("Input", "TK_Parameters.xlsx")) |> 
   filter(Predicted == "yes") 
+
+Input_PhysicoChemical_Parameters <- c("logD_MembraneLipidWater",
+                                      "logD_StructuralProteinWater",
+                                      "logD_AlbuminWater",
+                                      "logD_StorageLipidWater",
+                                      "logD_GlobulinWater",
+                                      "Papp_SI",
+                                      "Clear_OATP2B1c",
+                                      "Clear_OATP1B1c",
+                                      "Clear_OATP1B3c",
+                                      "Clear_NTCPc",
+                                      "Clear_BSEPc",
+                                      "Clear_OAT3c",
+                                      "Clear_OAT1c",
+                                      "Clear_OAT4c",
+                                      "SF_OATP2B1_I",
+                                      "SF_OATP1B1",
+                                      "SF_OATP1B3",
+                                      "SF_OATP2B1",
+                                      "SF_NTCP",
+                                      "SF_BSEP",
+                                      "SF_OAT3",
+                                      "SF_OAT1",
+                                      "SF_OAT4")
+
+Intermediate_TK_Parameters <- c("fup", 
+                                "fu_PTL",     
+                                "fu_L_ec",     
+                                "fu_PT_ec",
+                                "Clear_apparent",       
+                                "Clear_OATP2B1_I",          
+                                "Clear_OATP1B1",              
+                                "Clear_OATP1B3",                
+                                "Clear_OATP2B1_L",                
+                                "Clear_NTCP",                  
+                                "Clear_BSEP",            
+                                "Clear_OAT3",              
+                                "Clear_OAT1",                      
+                                "Clear_OAT4")
+
+Final_TK_Parameters <- c("PI",
+                         "PL",
+                         "PK",
+                         "PA",
+                         "PR",
+                         "Clear_uptake_I",             
+                         "Clear_uptake_L",
+                         "Clear_excretion_L",
+                         "GFR_free",
+                         "Clear_reabsorption_K")
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))
@@ -228,7 +282,7 @@ run_Monte_Carlo <- function(parm.chem, parm.phys, Dose_ug_day){
   run_pars <- as.data.frame(pars)
   
   PBK.out <- lsoda(y = A_init,
-                   times = seq(0, 365*3, by = 0.1), 
+                   times = TIMES, 
                    func = PBK.model,
                    parms = pars,
                    rtol = 1e-4,        
@@ -245,10 +299,7 @@ run_Monte_Carlo <- function(parm.chem, parm.phys, Dose_ug_day){
   
 }
 
-Monte_Carlo_PFAS_design <- list()
-Monte_Carlo_PFAS_RESULTS <- list()
-Monte_Carlo_PFAS_y <- list()
-Monte_Carlo_PFAS_savey <- list()#
+Monte_Carlo_PFAS_savey <- list()
 
 for (i in 1:nPFAS) {
   
@@ -262,25 +313,14 @@ for (i in 1:nPFAS) {
   Dose_ug_day <- filter(Dose_df, PFAS == PFAS_i) |> 
     select(Dose) |> pull()
   
-  PhysChemTK_params <- MC_TK_params |> 
+  parm.chem <- MC_TK_params |> 
     filter(PFAS == PFAS_i) |> 
-    select(!PFAS) 
-  
-  parm.chem <- PhysChemTK_params |> 
+    select(!PFAS) |> 
     mutate(Value = ifelse(PBK_mechanism == "Transport", log(Value), Value)) |> 
-    mutate(cValue = ifelse(PBK_mechanism == "Transport", log(cValue), cValue)) 
-    
-  
-  parm.chem <- parm.chem |> 
-    mutate(meanlog = ifelse(Distribution == "lognormal", cValue, NA),
+    mutate(meanlog = ifelse(Distribution == "lognormal", Value, NA),
            sdlog = ifelse(Distribution == "lognormal", RSE, NA),
-           # Value = ifelse(PBK_mechanism == "Scaling", Value*1e-6, Value),
-           # RSE = ifelse(PBK_mechanism == "Scaling", RSE*1e-6, RSE),
-           min = ifelse(PBK_mechanism == "Scaling", 1, NA),#1, NA),
-           # min = ifelse(PBK_mechanism == "Scaling", 
-           #              ifelse((Value - RSE)>0, Value - RSE, 0.1), NA),#1, NA),
-           max = ifelse(PBK_mechanism == "Scaling", cValue,NA),#Value, NA),
-           # max = ifelse(PBK_mechanism == "Scaling", Value + RSE,NA),#Value, NA),
+           min = ifelse(PBK_mechanism == "Scaling", 1, NA),
+           max = ifelse(PBK_mechanism == "Scaling", Value,NA),
            Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))
 
   MC.parms <- parm.chem$Parameter
@@ -290,7 +330,7 @@ for (i in 1:nPFAS) {
   # this optimises the Monte Carlo sampling, also used by McNally & Loizou
   
   set.seed(10010) # set seeds for reproducibility
-  n = 1000 # number of samples per parameter
+  n = 100 # number of samples per parameter
   X.LHS.MC.design <- randomLHS(n, MC.factors, preserveDraw = TRUE) # create lhs grid
   Y.LHS.MC.design <- matrix(0, nrow = n, ncol = MC.factors) # empty matrix to populate the parameters with
   
@@ -329,8 +369,8 @@ for (i in 1:nPFAS) {
                          values_to = "Value") |> 
     ggplot(aes(x=Value))+
     geom_histogram()+
-    facet_wrap(~Parameter, scales = "free")+
-    coord_flip()+
+    facet_wrap(~ factor(Parameter, Input_PhysicoChemical_Parameters), 
+               scales = "free") +    coord_flip()+
     labs(title = paste0(PFAS_i," Monte Carlo parameter distributions"),
          y = "Frequency",
          x = "Value (different unit per parameter)") +
@@ -459,74 +499,110 @@ for (i in 1:nPFAS) {
   # Actual parameters ----
   
   Parameters_df <- Results_df |>
-    select(GFR:Clear_reabsorption) |>
-    select(!starts_with("CF_")) |> 
-    distinct() |> 
-    mutate(fup_GFR = GFR) |> 
-    select(!GFR) 
+    select(VI_L:Clear_OAT4) |>
+    distinct()
 
   write.csv(Parameters_df, file = here(OUTPUT, paste0(PFAS_i, "_final_model_parameters.csv")))
+
   
-  P_long_df <- Parameters_df |>
+  Input_PhysicoChemical_Parameters_plot <- Parameters_df |> 
+    select(logD_MembraneLipidWater:SF_OAT4) |> 
     pivot_longer(everything(),
                  names_to = "Parameter",
-                 values_to = "Value")
+                 values_to = "Value") |> 
+    ggplot() +
+    geom_histogram(aes(x = Value)) +
+    facet_wrap(~ factor(Parameter,Input_PhysicoChemical_Parameters), 
+               scales = "free") +
+                 labs(title = paste0(PFAS_i, " Input physico-chemical parameters"),
+                      x = "Value",
+                      y = "Frequency") +
+                 coord_flip()+
+                 theme_quick
   
-  Parameters_plot <- ggplot(P_long_df, aes(x = Value)) +
-    geom_histogram() +
-    facet_wrap(~ factor(Parameter, 
-                        c("PI",   
-                          "PL",        
-                          "PK",          
-                          "PA",         
-                          "PR",  
-                          "fup", 
-                          "fu_PTL",     
-                          "fu_L_ec",     
-                          "fu_PT_ec",
-                          "SF_OATP2B1_I",          
-                          "SF_OATP2B1",              
-                          "SF_OATP1B3",                     
-                          "SF_OATP1B1",             
-                          "SF_NTCP",               
-                          "SF_BSEP",                        
-                          "SF_OAT1",             
-                          "SF_OAT3",                
-                          "SF_OAT4",    
-                          "tco",
-                          "Clear_apparent",       
-                          "Clear_OATP2B1_I",          
-                          "Clear_uptake_I",                 
-                          "Clear_OATP1B1",              
-                          "Clear_OATP1B3",                
-                          "Clear_OATP2B1_L",                
-                          "Clear_NTCP",                  
-                          "Clear_BSEP",                 
-                          "Clear_uptake_L",                 
-                          "Clear_excretion_L",     
-                          "fup_GFR",
-                          "Clear_OAT3",              
-                          "Clear_OAT1",                      
-                          "Clear_OAT4",              
-                          "Clear_reabsorption",
-                          "QT"
-                        )), scales = "free") +
-    labs(title = paste0(PFAS_i, "final model parameters"),
+  Intermediate_TK_Parameters_plot <- Parameters_df |> 
+    select(fup:fu_PT_ec,Clear_apparent:Clear_OAT4) |> 
+    pivot_longer(everything(),
+                 names_to = "Parameter",
+                 values_to = "Value") |> 
+    ggplot() +
+    geom_histogram(aes(x = Value)) +
+    facet_wrap(~ factor(Parameter, Intermediate_TK_Parameters), scales = "free") +
+    labs(title = paste0(PFAS_i, " intermediate TK parameters"),
+         x = "Value",
+         y = "Frequency") +
+    coord_flip()+
+    theme_quick
+
+  Final_TK_Parameters_plot <- Parameters_df |> 
+    select(PI:Clear_reabsorption_K) |> 
+    pivot_longer(everything(),
+                 names_to = "Parameter",
+                 values_to = "Value") |> 
+    ggplot() +
+    geom_histogram(aes(x = Value)) +
+    facet_wrap(~ factor(Parameter, Final_TK_Parameters), 
+               scales = "free") +
+    labs(title = paste0(PFAS_i, " final TK parameters"),
          x = "Value",
          y = "Frequency") +
     coord_flip()+
     theme_quick
   
-  Parameters_plot = Parameters_plot + Patchwork_theme +
-    theme(axis.text.x = element_text(angle = 0))
+  Final_Physio_Parameters_plot <- Parameters_df |> 
+    select(VI_L:Calb_P, BW:QC) |> 
+    pivot_longer(everything(),
+                 names_to = "Parameter",
+                 values_to = "Value") |> 
+    ggplot() +
+    geom_histogram(aes(x = Value)) +
+    facet_wrap(~ Parameter, scales = "free") +
+    labs(title = paste0(PFAS_i, " physiological parameters"),
+         x = "Value",
+         y = "Frequency") +
+    coord_flip()+
+    theme_quick
   
-  ggsave(plot = Parameters_plot,
-         file = here(OUTPUT, paste0(PFAS_i, "_final_model_parameters_plot.png")),
+  
+  Input_PhysicoChemical_Parameters_plot = Input_PhysicoChemical_Parameters_plot +
+   Patchwork_theme + theme(axis.text.x = element_text(angle = 0))
+  
+  Intermediate_TK_Parameters_plot  = Intermediate_TK_Parameters_plot +
+    Patchwork_theme + theme(axis.text.x = element_text(angle = 0))
+  
+  Final_TK_Parameters_plot = Final_TK_Parameters_plot +
+    Patchwork_theme + theme(axis.text.x = element_text(angle = 0))
+  
+  Final_Physio_Parameters_plot = Final_Physio_Parameters_plot +
+    Patchwork_theme + theme(axis.text.x = element_text(angle = 0))
+  
+  ggsave(plot = Input_PhysicoChemical_Parameters_plot,
+         file = here(OUTPUT, paste0(PFAS_i, "_Input_PhysicoChemical_Parameters_plot.png")),
          dpi = 600,
          width = 24,
          height = 18,
          units = "cm")
   
+  ggsave(plot = Intermediate_TK_Parameters_plot,
+         file = here(OUTPUT, paste0(PFAS_i, "_Intermediate_TK_Parameters_plot.png")),
+         dpi = 600,
+         width = 18,
+         height = 18,
+         units = "cm")
+  
+  ggsave(plot = Final_TK_Parameters_plot,
+         file = here(OUTPUT, paste0(PFAS_i, "_Final_TK_Parameters_plot.png")),
+         dpi = 600,
+         width = 16,
+         height = 16,
+         units = "cm")
+  
+  ggsave(plot = Final_Physio_Parameters_plot,
+         file = here(OUTPUT, paste0(PFAS_i, "_Final_Physio_Parameters_plot.png")),
+         dpi = 600,
+         width = 24,
+         height = 18,
+         units = "cm")
   
   # Predicted tissue concentrations ----
 
@@ -544,12 +620,12 @@ for (i in 1:nPFAS) {
   Initial_Tissues_list <- c("CI", "CL_ec", "CL_ic", "CPTL", "CPTT", "CRKL", "CRKT", "CA", "CR", "CP")
   
   
-  C_df <- Results_df |>
+  C_all_df <- Results_df |>
     select(time, CI, CL_ec, CL_ic, CPTL, CPTT, CRKL, CRKT, CA, CR, CP, Iteration) |>
     mutate(PFAS = PFAS_i) |>
     mutate(CL = (CL_ec*VL_ec + CL_ic*VL_ic)/VL,
            CK = (CPTL*VPTL + CPTT*VPTT + CRKL*VRKL + CRKT*VRKT)/VK,
-           time = time/365) |> # time to years
+           time = time) |> # time to years
     select(PFAS, Iteration, time, CA, CR, CI, CL, CK, CP) |>
     pivot_longer(CA:CP,
                  names_to = "Tissue",
@@ -569,7 +645,7 @@ for (i in 1:nPFAS) {
     Tissue_j <- Tissues_list[j]
     Tissue_j_name <- Tissues_names[j]
     
-    C_summary <- calc_C_summary(C_df, Tissue_j) |>
+    C_summary <- calc_C_summary(C_all_df, Tissue_j) |>
       mutate(Tissue = Tissue_j_name,
              PFAS = PFAS_i)
     
@@ -577,7 +653,9 @@ for (i in 1:nPFAS) {
     
   }
   
-  C_Tissues <- do.call(rbind, C_Tissues_list)
+  C_Tissues <- do.call(rbind, C_Tissues_list) |> 
+    mutate(Time = rep(TIMES, nTissues),
+           Time = Time/365)
   
   C_Tissues_plot <- plot_all_tissues(C_Tissues)
   
@@ -606,8 +684,7 @@ TK_df <-
              pattern = "\\_TK_sumstat.csv$") |>
   map_df(~ read_csv(file = here(OUTPUT, .)))|> select(!"...1")
 write.csv(TK_df, here(OUTPUT, "TK_results_all_PFAS.csv"), row.names = FALSE)
-# TK_df <- read_csv("Output/CleanInitialParams_UncertaintyAnalysis/TK_results_all_PFAS.csv",
-#                                 trim_ws = FALSE)
+
 C_df <-
   list.files(path = here(OUTPUT),
              pattern = "\\_TissueC_sumstat.csv$") |>
@@ -625,18 +702,22 @@ C_plasma_predicted_df <- C_df |>
 
 C_plasma_predicted_df <- full_join(C_plasma_predicted_df, nC_MW_df) 
 
-
-
 CP_plot <- ggplot() +
   geom_ribbon(data = C_plasma_predicted_df,
-              aes(x = Time/365,
+              aes(x = Time,
+                  ymin = min,
+                  ymax = max,
+                  fill = Category_OECD),
+              alpha = 0.2) +
+  geom_ribbon(data = C_plasma_predicted_df,
+              aes(x = Time,
                   ymin = q25,
                   ymax = q75,
                   fill = Category_OECD),
-              alpha = 0.5) +
+              alpha = 0.3) +
   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
   geom_path(data = C_plasma_predicted_df,
-            aes(Time/365, median,
+            aes(Time, median,
                 colour = Category_OECD)) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
   facet_wrap(~ factor(PFAS, c( #factor(n_C),
@@ -679,24 +760,20 @@ HL_predicted_df <- TK_df |>
 HL_predicted_df <- full_join(HL_predicted_df, nC_MW_df)
 
 HL_predicted_plot <- ggplot() +
-  geom_errorbar(data = HL_predicted_df,
-                aes(x = reorder(PFAS, MW),
-                    y = log10(median),
-                    colour = Category_OECD,
-                    ymin = log10(q25),
-                    ymax = log10(q75)),
-                width = .01,
-                linewidth = .4) +
-  geom_point(data = HL_predicted_df,
-             aes(x = reorder(PFAS, MW),
-                 y = log10(median),
-                 shape = Category_OECD,
-                 colour = Category_OECD),
-             size = 1.5) +
+  geom_boxplot(data = HL_predicted_df,
+               aes(x = reorder(PFAS, MW), y = log10(median),
+                   ymin = log10(min), lower = log10(q25), 
+                   middle = log10(median), 
+                   upper = log10(q75), ymax = log10(max),
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
   guides(color = guide_legend(override.aes = list(fill = NA))) +
   theme_quick
-# HL_predicted_plot
+HL_predicted_plot
 # 
 # HL_predicted_plot <- HL_predicted_plot + Patchwork_theme +
 #   theme(legend.position = "top",
@@ -712,7 +789,7 @@ HL_predicted_plot <- ggplot() +
 
 
 
-### Fraction eliminated in urine and feces ----
+### Fraction absorbed and eliminated in urine and feces ----
 
 FelFa_predicted_df <- TK_df |> 
   filter(Parameter %in% c("Fa", 
@@ -757,10 +834,10 @@ Fa_predicted_df <- full_join(Fa_predicted_df, nC_MW_df)
 
 Fa_plot <- ggplot()+
   geom_boxplot(data = Fa_predicted_df,
-               aes(x = reorder(PFAS, MW), y = log10(median),
-                   ymin = log10(q25), lower = log10(q25), 
-                   middle = log10(median), 
-                   upper = log10(q75), ymax = log10(q75),
+               aes(x = reorder(PFAS, MW), y = (median),
+                   ymin = (min), lower = (q25), 
+                   middle = (median), 
+                   upper = (q75), ymax = (max),
                    fill = Category_OECD, colour = Category_OECD),
                stat = "identity",
                linewidth = 0.3,
@@ -768,8 +845,6 @@ Fa_plot <- ggplot()+
   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
   scale_colour_viridis(option = "D", discrete = TRUE, end = 0.7) +
   theme_quick
-
-
 
 Fe_plot <- ggplot() +
   geom_bar(data = Clean_FelFa,
@@ -804,7 +879,7 @@ Fe_plot <- ggplot() +
        y = "Cumulative fraction excreted") +
   theme_quick +
   theme(legend.position = "right")
-
+Fe_plot
 
 Fe_plot <- Fe_plot + Patchwork_theme +
   theme(legend.position = "top",
@@ -842,9 +917,9 @@ RurRfe_predicted_df <- full_join(RurRfe_predicted_df, nC_MW_df)
 CL_plot <- ggplot() +
   geom_boxplot(data = CLurCLfe_predicted_df,
                aes(x = reorder(PFAS, MW), y = log10(median),
-                   ymin = log10(q25), lower = log10(q25), 
+                   ymin = log10(min), lower = log10(q25), 
                    middle = log10(median), 
-                   upper = log10(q75), ymax = log10(q75),
+                   upper = log10(q75), ymax = log10(max),
                    fill = Category_OECD, colour = Category_OECD),
                stat = "identity",
                linewidth = 0.3,
@@ -856,6 +931,7 @@ CL_plot <- ggplot() +
                                       "CLur" = "Renal")),
              scales = "free_y") +
   theme_quick
+CL_plot
 # CL_plot <- CL_plot + Patchwork_theme +
 #    theme(axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0)),
 #          legend.position = "top"
@@ -881,7 +957,7 @@ UA_one <- CP_plot +
 UA_two <- Fa_plot + 
   labs(title = "B." ,
        x = "",
-       y = "Fraction absorbed (log10 scale)") +
+       y = "Fraction absorbed") +
   guides(colour = FALSE) + guides(linetype = FALSE) + 
   Patchwork_theme + 
   theme(legend.position = "none", 
@@ -918,7 +994,189 @@ ggsave(plot = UA_plot,
        height = 16,
        units = "cm")
 
-### Against HL measured ----
+## Post process parameters ----
+
+P_df <- list.files(path = here(OUTPUT),
+                   pattern = "\\_final_model_parameters.csv$") |>
+  map_df(~ read_csv(file = here(OUTPUT, .),
+                    id = "name"))|>
+  select(!"...2") |>
+  # rename(Iteration = "...2") |>
+  mutate(PFAS = str_replace_all(name,
+                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/25Aug_AsAbraham_n100/",
+                                "")) |>
+  mutate(PFAS = str_replace_all(PFAS,
+                                "_final_model_parameters.csv","")) |>
+  select(!name) #|> unite("PFAS_Iteration", c(PFAS,Iteration), sep = "_")
+
+
+Visualise_P <- P_df |>
+  # select(!Clear_net_reabsorption_unscaled) |>
+  rename_with(~str_remove(.x, "_")) |>
+  rename_with(~str_remove(.x, "_")) |>
+  group_by(PFAS) |>
+  summarise(across(where(is.numeric),
+                   .fns =
+                     list(median = ~median(.,na.rm = TRUE),
+                          q25 = ~quantile(., 0.25, na.rm = TRUE),
+                          q75 = ~quantile(.,0.75, na.rm = TRUE),
+                          min = ~min(.,na.rm = TRUE),
+                          max = ~max(.,na.rm = TRUE)))
+  ) |>
+  pivot_longer(!PFAS, names_to = c("Parameter", "stat"),
+               names_sep = "_",values_to = "Value") |>
+  pivot_wider(names_from = stat, values_from = Value)
+
+Visualise_P <- full_join(Visualise_P, nC_MW_df)
+write.csv(Visualise_P, here(OUTPUT,"All_PFAS_finalParameters.csv"), row.names = FALSE)
+
+Input_PhysicoChemical_Parameters <- str_remove_all(Input_PhysicoChemical_Parameters, "_")
+
+Input_PhysicoChemical_Parameters_plot <- Visualise_P |>
+  filter(Parameter %in% Input_PhysicoChemical_Parameters) |>
+  ggplot()+
+  geom_boxplot(aes(x = reorder(PFAS, MW),
+                   y = median,
+                   ymin = min, lower = q25,
+                   middle = median,
+                   upper = q75, ymax = max,
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
+  guides(color = guide_legend(override.aes = list(fill = NA))) +
+  # facet_wrap(~Parameter, scales = "free_y")+
+  facet_wrap(~factor(Parameter,Input_PhysicoChemical_Parameters),
+             scales = "free_y") +
+  labs(x = "",
+       y = "") +
+  theme_quick +
+  theme(axis.text.x = element_text(angle = 90))
+
+Intermediate_TK_Parameters <- str_remove_all(Intermediate_TK_Parameters, "_")
+
+Intermediate_TK_Parameters_plot <- Visualise_P |>
+  filter(Parameter %in% Intermediate_TK_Parameters) |>
+  ggplot()+
+  geom_boxplot(aes(x = reorder(PFAS, MW),
+                   y = median,
+                   ymin = min, lower = q25,
+                   middle = median,
+                   upper = q75, ymax = max,
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
+  guides(color = guide_legend(override.aes = list(fill = NA))) +
+  # facet_wrap(~Parameter, scales = "free_y")+
+  facet_wrap(~factor(Parameter,Intermediate_TK_Parameters),
+             scales = "free_y") +
+  labs(x = "",
+       y = "") +
+  theme_quick +
+  theme(axis.text.x = element_text(angle = 90))
+Intermediate_TK_Parameters_plot
+
+Final_TK_Parameters <- str_remove_all(Final_TK_Parameters, "_")
+Final_TK_Parameters_plot <- Visualise_P |>
+  filter(Parameter %in% Final_TK_Parameters) |>
+  ggplot()+
+  geom_boxplot(aes(x = reorder(PFAS, MW),
+                   y = median,
+                   ymin = min, lower = q25,
+                   middle = median,
+                   upper = q75, ymax = max,
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
+  guides(color = guide_legend(override.aes = list(fill = NA))) +
+  # facet_wrap(~Parameter, scales = "free_y")+
+  facet_wrap(~factor(Parameter,Final_TK_Parameters),
+             scales = "free_y") +
+  labs(x = "",
+       y = "") +
+  theme_quick +
+  theme(axis.text.x = element_text(angle = 90))
+Final_TK_Parameters_plot
+
+
+Final_Physio_Parameters_plot <- Visualise_P |>
+  filter_out(Parameter %in% Final_TK_Parameters) |>
+  filter_out(Parameter %in% Input_PhysicoChemical_Parameters) |>
+  filter_out(Parameter %in% Intermediate_TK_Parameters) |>
+  ggplot()+
+  geom_boxplot(aes(x = reorder(PFAS, MW),
+                   y = median,
+                   ymin = min, lower = q25,
+                   middle = median,
+                   upper = q75, ymax = max,
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
+  guides(color = guide_legend(override.aes = list(fill = NA))) +
+  # facet_wrap(~Parameter, scales = "free_y")+
+  facet_wrap(~Parameter,
+             scales = "free_y") +
+  labs(x = "",
+       y = "") +
+  theme_quick +
+  theme(axis.text.x = element_text(angle = 90))
+Final_Physio_Parameters_plot
+
+
+Input_PhysicoChemical_Parameters_plot = Input_PhysicoChemical_Parameters_plot +
+  Patchwork_theme + theme(axis.text.x = element_text(angle = 90))
+
+Intermediate_TK_Parameters_plot  = Intermediate_TK_Parameters_plot +
+  Patchwork_theme + theme(axis.text.x = element_text(angle = 90))
+
+Final_TK_Parameters_plot = Final_TK_Parameters_plot +
+  Patchwork_theme + theme(axis.text.x = element_text(angle = 90))
+
+Final_Physio_Parameters_plot = Final_Physio_Parameters_plot +
+  Patchwork_theme + theme(axis.text.x = element_text(angle = 90))
+
+ggsave(plot = Input_PhysicoChemical_Parameters_plot,
+       file = here(OUTPUT, paste0("all_PFAS", "_Input_PhysicoChemical_Parameters_plot.png")),
+       dpi = 600,
+       width = 24,
+       height = 18,
+       units = "cm")
+
+ggsave(plot = Intermediate_TK_Parameters_plot,
+       file = here(OUTPUT, paste0("all_PFAS", "_Intermediate_TK_Parameters_plot.png")),
+       dpi = 600,
+       width = 18,
+       height = 18,
+       units = "cm")
+
+ggsave(plot = Final_TK_Parameters_plot,
+       file = here(OUTPUT, paste0("all_PFAS", "_Final_TK_Parameters_plot.png")),
+       dpi = 600,
+       width = 16,
+       height = 16,
+       units = "cm")
+
+ggsave(plot = Final_Physio_Parameters_plot,
+       file = here(OUTPUT, paste0("all_PFAS", "_Final_Physio_Parameters_plot.png")),
+       dpi = 600,
+       width = 24,
+       height = 18,
+       units = "cm")
+
+
+
+## Against HL measured ----
 
 
 Measured_df <- read_excel(here("Input", "Evaluation_data.xlsx")) |>
@@ -979,24 +1237,20 @@ HL_MesPred_plot <-
               aes(reorder(PFAS, MW),
                   log10(Value),
                   shape = Category_OECD),
-              color = "grey60",
+              color = "grey10",
               width = 0.2,
               alpha = 0.9,
               size = .3) +
-  geom_errorbar(data = HL_predicted_df,
-                aes(x = reorder(PFAS, MW),
-                    y = log10(median),
-                    colour = Category_OECD,
-                    ymin = log10(q25),
-                    ymax = log10(q75)),
-                width = .01,
-                linewidth = .4) +
-  geom_point(data = HL_predicted_df,
-             aes(x = reorder(PFAS, MW),
-                 y = log10(median),
-                 shape = Category_OECD,
-                 colour = Category_OECD),
-             size = 1.5) +
+  geom_boxplot(data = HL_predicted_df,
+               aes(x = reorder(PFAS, MW), y = log10(median),
+                   ymin = log10(min), lower = log10(q25), 
+                   middle = log10(median), 
+                   upper = log10(q75), ymax = log10(max),
+                   fill = Category_OECD, colour = Category_OECD),
+               stat = "identity",
+               linewidth = 0.3,
+               width = 0.5) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
   guides(color = guide_legend(override.aes = list(fill = NA))) +
   labs(x = "",
@@ -1017,235 +1271,7 @@ ggsave(plot = HL_MesPred_plot,
        height = 11,
        units = "cm")
 
-# Post process parameters ----
-
-P_df <- list.files(path = here(OUTPUT),
-                   pattern = "\\_final_model_parameters.csv$") |>
-  map_df(~ read_csv(file = here(OUTPUT, .),
-                    id = "name"))|> 
-  select(!"...2") |> 
-  # rename(Iteration = "...2") |> 
-  mutate(PFAS = str_replace_all(name,
-                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/UA_GoF_22Aug/",
-                                "")) |> 
-  mutate(PFAS = str_replace_all(PFAS,
-                                "_final_model_parameters.csv","")) |>
-  select(!name) #|> unite("PFAS_Iteration", c(PFAS,Iteration), sep = "_") 
-
-
-Visualise_P <- P_df |>  
-  # select(!Clear_net_reabsorption_unscaled) |> 
-  rename_with(~str_remove(.x, "_")) |> 
-  rename_with(~str_remove(.x, "_")) |> 
-  group_by(PFAS) |> 
-  summarise(across(where(is.numeric), 
-                   .fns =
-                     list(median = ~median(.,na.rm = TRUE),
-                          q25 = ~quantile(., 0.25, na.rm = TRUE),
-                          q75 = ~quantile(.,0.75, na.rm = TRUE)))
-  ) |>  
-  pivot_longer(!PFAS, names_to = c("Parameter", "stat"), 
-               names_sep = "_",values_to = "Value") |> 
-  pivot_wider(names_from = stat, values_from = Value)
-
-Visualise_P <- full_join(Visualise_P, nC_MW_df)
-write.csv(Visualise_P, here(OUTPUT,"All_PFAS_finalParameters.csv"), row.names = FALSE)
-
-
-
-SA_SI <-1099.557*64.41978
-VI_L <- 0.03848451 * 64.41978      
-VL_ic <- 0.03848451 * 64.41978 * 0.835               
-VPT <- 0.004630086 * 64.41978 * 0.398
-
-
-Selected_final_P <- Visualise_P |> 
-  filter(Parameter %in% c(
-    "fuPTec",
-    "fuLec",
-    "fuPTL",
-    "SFOATP2B1I",
-    "SFOATP2B1",
-    "SFOATP1B3",
-    "SFOATP1B1", 
-    "SFNTCP",    
-    "SFBSEP",
-    "SFOAT1",           
-    "SFOAT3",
-    "SFOAT4",
-    "Clearapparent",
-    "ClearOATP2B1I",
-    "ClearuptakeI",
-    "ClearOATP1B1",
-    "ClearOATP1B3",
-    "ClearOATP2B1L",
-    "ClearNTCP",
-    "ClearBSEP",
-    "ClearOAT3",
-    "ClearOAT1",
-    "ClearOAT4"  
-  )) |> 
-  pivot_wider(names_from = Parameter, values_from = c(median, q25, q75)) |> 
-  mutate(
-    median__Papp_SI = median_Clearapparent / (SA_SI*1e-3),    
-    q25__Papp_SI = q25_Clearapparent / (SA_SI*1e-3),    
-    q75__Papp_SI = q75_Clearapparent / (SA_SI*1e-3),    
-    
-    median__Clear_OATP2B1c = median_ClearOATP2B1I / (median_SFOATP2B1I*VI_L),  
-    q25__Clear_OATP2B1c = q25_ClearOATP2B1I / (q25_SFOATP2B1I*VI_L),  
-    q75__Clear_OATP2B1c = q75_ClearOATP2B1I / (q75_SFOATP2B1I*VI_L),  
-    
-    median__Clear_OATP1B1c = median_ClearOATP1B1 / (median_SFOATP1B1*VL_ic*median_fuLec),
-    q25__Clear_OATP1B1c = q25_ClearOATP1B1 / (q25_SFOATP1B1*VL_ic*q25_fuLec),
-    q75__Clear_OATP1B1c = q75_ClearOATP1B1 / (q75_SFOATP1B1*VL_ic*q75_fuLec),
-    
-    median__Clear_OATP1B3c = median_ClearOATP1B3 / (median_SFOATP1B3*VL_ic*median_fuLec),
-    q25__Clear_OATP1B3c = q25_ClearOATP1B3 / (q25_SFOATP1B3*VL_ic*q25_fuLec),
-    q75__Clear_OATP1B3c = q75_ClearOATP1B3 / (q75_SFOATP1B3*VL_ic*q75_fuLec),
-    
-    median__Clear_NTCPc = median_ClearNTCP / (median_SFNTCP*VL_ic*median_fuLec),   
-    q25__Clear_NTCPc = q25_ClearNTCP / (q25_SFNTCP*VL_ic*q25_fuLec),    
-    q75__Clear_NTCPc = q75_ClearNTCP / (q75_SFNTCP*VL_ic*q75_fuLec),    
-    
-    median__Clear_BSEPc = median_ClearBSEP / (median_SFBSEP*VL_ic),
-    q25__Clear_BSEPc = q25_ClearBSEP / (q25_SFBSEP*VL_ic),
-    q75__Clear_BSEPc = q75_ClearBSEP / (q75_SFBSEP*VL_ic),
-    
-    median__Clear_OAT3c = median_ClearOAT3 / (median_SFOAT3*VPT*median_fuPTec),
-    q25__Clear_OAT3c = q25_ClearOAT3 / (q25_SFOAT3*VPT*q25_fuPTec),
-    q75__Clear_OAT3c = q75_ClearOAT3 / (q75_SFOAT3*VPT*q75_fuPTec),
-    
-    median__Clear_OAT1c = median_ClearOAT1 / (median_SFOAT1*VPT*median_fuPTec),
-    q25__Clear_OAT1c = q25_ClearOAT1 / (q25_SFOAT1*VPT*q25_fuPTec),
-    q75__Clear_OAT1c = q75_ClearOAT1 / (q75_SFOAT1*VPT*q75_fuPTec),
-    
-    median__Clear_OAT4c = median_ClearOAT4 / (median_SFOAT4*VPT*median_fuPTL),
-    q25__Clear_OAT4c = q25_ClearOAT4 / (q25_SFOAT4*VPT*q25_fuPTL),
-    q75__Clear_OAT4c = q75_ClearOAT4 / (q75_SFOAT4*VPT*q75_fuPTL)
-  ) |> 
-  pivot_longer(!c(PFAS, Category_OECD, MW, n_C),
-               names_to = "Parameter", 
-               values_to = "Value") |> 
-  separate(Parameter, into = c("stat", "Parameter"), sep = "__") |> 
-  separate(stat, into = c("stat1", "Parameter2"), sep = "_") |> 
-  mutate(Parameter = ifelse(!is.na(Parameter), Parameter, Parameter2)) |> 
-  select(!Parameter2) |> 
-  pivot_wider(names_from = stat1, values_from = Value) |> 
-  mutate(Parameter = str_replace_all(Parameter,
-    c("SFOATP2B1I"="SF_OATP2B1_I",
-      "SFOATP2B1"="SF_OATP2B1" ,
-      "SFOATP1B3"= "SF_OATP1B3",
-      "SFOATP1B1"="SF_OATP1B1",
-      "SFNTCP"="SF_NTCP",    
-      "SFBSEP"="SF_BSEP",
-      "SFOAT1"="SF_OAT1",           
-      "SFOAT3"="SF_OAT3",
-      "SFOAT4"="SF_OAT4",
-      "fuPTL"="fu_PTL",
-      "fuLec"="fu_L_ec",
-      "fuPTec"="fu_PT_ec"   
-    ))) |> 
-  filter_out(Parameter %in% c(
-    "Clearapparent", "ClearOATP2B1I",
-    "ClearuptakeI",  "ClearOATP1B1",  
-    "ClearOATP1B3",  "ClearOATP2B1L", 
-    "ClearNTCP",     "ClearBSEP",     
-    "ClearOAT3",        "ClearOAT1",     "ClearOAT4")
-    )
-  
-  write.csv(Selected_final_P, here(OUTPUT, "Calibrated_P.csv"), row.names = FALSE)
-
-Parameters_plot <- ggplot() +
-  geom_pointrange(data = Visualise_P,
-                  aes(x = reorder(PFAS, MW),
-                      y = median,
-                      colour = Category_OECD,
-                      ymin = q25,
-                      ymax = q75),
-                  size = 0.1,
-                  # width = .01,
-                  linewidth = .4) +
-  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
-  guides(color = guide_legend(override.aes = list(fill = NA))) +
-  # facet_wrap(~Parameter, scales = "free_y")+
-  facet_wrap(~factor(Parameter,
-                     c( "SFOATP2B1I",    "SFOATP2B1",       "SFOATP1B3",     "SFOATP1B1",
-                        "SFNTCP",        "SFBSEP",          "SFOAT1",        "SFOAT3",
-                        "SFOAT4",
-                        "PI",            "PL",              "PK",            "PA",        "PR",
-                        "tco",           "Clearapparent",   "ClearOATP2B1I",   "ClearuptakeI",
-                        "fuLec", "ClearOATP1B1",  "ClearOATP1B3",    "ClearOATP2B1L", "ClearNTCP", "ClearuptakeL",
-                        "ClearBSEP",     "ClearexcretionL",
-                        "fup", "GFR",           "fupGFR",   "fuPTec", "ClearOAT3",     "ClearOAT1",  "ClearOAT4",
-                        "fuPTL", "Clearreabsorption", "QT")
-  ), scales = "free_y") +
-  labs(x = "", 
-       y = "") +
-  theme_quick +
-  theme(axis.text.x = element_text(angle = 90))
-
-Parameters_plot = Parameters_plot + Patchwork_theme +
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave(plot = Parameters_plot,
-       file = here(OUTPUT, "All_PFAS_calculated_model_parameters_plot.png"),
-       dpi = 600,
-       width = 24,
-       height = 18,
-       units = "cm")
-
-SelectedP_df <- P_df |> 
-  select(PFAS,Clear_uptake_I, Clear_uptake_L, Clear_excretion_L, fup_GFR, Clear_reabsorption) |> 
-  rename(UI = Clear_uptake_I, UL = Clear_uptake_L, EL = Clear_excretion_L, fGFR = fup_GFR, RK = Clear_reabsorption) |> 
-  group_by(PFAS) |> 
-  summarise(across(where(is.numeric), .fns =
-                     list(median = ~median(.,na.rm = TRUE),
-                          mean = ~mean(.,na.rm = TRUE),
-                          q25 = ~quantile(., 0.25, na.rm = TRUE),
-                          q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
-  pivot_longer(!PFAS, names_to = c("Parameter", "stat"), 
-               names_sep = "_",values_to = "Value") |> 
-  mutate(Parameter = str_replace_all(Parameter, c("UI"= "Clear_uptake_I", 
-                                                  "UL"= "Clear_uptake_L", 
-                                                  "EL"= "Clear_excretion_L", 
-                                                  "fGFR"= "fup_GFR", 
-                                                  "RK"= "Clear_reabsorption"
-  ))) |> 
-  pivot_wider(names_from = stat, values_from = Value)
-
-SelectedP_df <- full_join(SelectedP_df, nC_MW_df)
-
-Key_params_plot <- ggplot() +
-  geom_pointrange(data = SelectedP_df,
-                  aes(x = reorder(PFAS, MW),
-                      y = median,
-                      colour = Category_OECD,
-                      ymin = q25,
-                      ymax = q75),
-                  size = 0.1,
-                  # width = .01,
-                  linewidth = .4) +
-  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
-  guides(color = guide_legend(override.aes = list(fill = NA))) +
-  facet_wrap(~Parameter, scales = "free_y") +
-  labs(x = "", 
-       y = "Clearance (L/day)") +
-  theme_quick +
-  theme(axis.text.x = element_text(angle = 90))
-
-
-Key_params_plot <- Key_params_plot + CP_theme +
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave(plot = Key_params_plot,
-       file = here(OUTPUT, "All_PFAS_key_params_plot.png"),
-       dpi = 600,
-       width = 16,
-       height = 12,
-       units = "cm")
-
-
-### Against measured clearances ----
+## Against measured clearances ----
 
 CL_UrFe_measured_df <- Measured_df |>
   filter(Parameter %in% c("CL_urinary", 
@@ -1266,17 +1292,16 @@ CL_MesPred_plot <- ggplot() +
   geom_point(data = CL_UrFe_measured_df,
              aes(x = reorder(PFAS, MW), y = log10(Value),
                  shape = Reference), #,             color = Category_OECD), 
-             color = "grey60") +
-  geom_pointrange(data = CLurCLfe_predicted_df,
+             color = "grey10") +
+  geom_boxplot(data = CLurCLfe_predicted_df,
                aes(x = reorder(PFAS, MW), y = log10(median),
-                   ymin = log10(q25), #lower = log10(q25),
-                   # middle = log10(median), upper = log10(q75), 
-                   ymax = log10(q75),
+                   ymin = log10(min), lower = log10(q25), 
+                   middle = log10(median), 
+                   upper = log10(q75), ymax = log10(max),
                    fill = Category_OECD, colour = Category_OECD),
-               # stat = "identity",
+               stat = "identity",
                linewidth = 0.3,
-               width = .01,
-               size = .3) +
+               width = 0.5) +
   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7, alpha = 0.7) +
   scale_colour_viridis(option = "D", discrete = TRUE, end = 0.7) +
   facet_wrap(~ Parameter, nrow = 2,
@@ -1285,7 +1310,6 @@ CL_MesPred_plot <- ggplot() +
              scales = "free_y") +
   labs(x = "",y = "Clearance (L/day) (log10 scale)")+
   theme_quick
-
 
 CL_MesPred_plot
 
@@ -1302,39 +1326,45 @@ ggsave(plot = CL_MesPred_plot,
        units = "cm")
 
 
-### Against plasma measured ----
+## Against plasma measured ----
 
 Measured_Abraham_df <- Measured_df |>
   filter(Reference == "Abraham_2024")
 
 C_plasma_measured_df <- Measured_df |>
   filter(Parameter == "C_plasma") |>
-  mutate(Time = as.numeric(Time_days)) |>
+  mutate(Time = as.numeric(Time_days)/365) |>
   select(PFAS, Time, Value)
 C_plasma_measured_df <- full_join(C_plasma_measured_df, nC_MW_df)
 
 C_plasma_predicted_df <- C_df |>
   filter(Tissue == "Plasma",
-         Time < 450)
+         Time < 1.25)
 
 C_plasma_predicted_df <- full_join(C_plasma_predicted_df, nC_MW_df)
 
 
 ObsVsPred_Plasma_plot <- ggplot() +
   geom_ribbon(data = C_plasma_predicted_df,
-              aes(x = Time/365,
+              aes(x = Time,
+                  ymin = min,
+                  ymax = max,
+                  fill = Category_OECD),
+              alpha = 0.2) +
+  geom_ribbon(data = C_plasma_predicted_df,
+              aes(x = Time,
                   ymin = q25,
                   ymax = q75,
                   fill = Category_OECD),
-              alpha = 0.5) +
+              alpha = 0.3) +
   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
   geom_path(data = C_plasma_predicted_df,
-            aes(Time/365, median,
+            aes(Time, median,
                 colour = Category_OECD)) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
   geom_point(data = C_plasma_measured_df, #filter(C_plasma_measured_df, Category_OECD == "PFCAs"),
-             aes(Time/365, Value),
-             colour = "black",
+             aes(Time, Value),
+             colour = "grey10",
              size = 0.05) +
   labs(x = "Time (years)",
        y = "Concentration (μg/ml)") +
@@ -1372,122 +1402,125 @@ ggsave(plot = ObsVsPred_Plasma_plot,
        height = 8,
        units = "cm")
 
+### Ratios ----
 
-
-
-
-Ratios <- C_df |>
-  select(!"...1") |> 
-  filter(Tissue %in% c("Plasma", "Kidney", "Liver"),
-         PFAS %in% c("PFOA", "PFNA", "PFHxS", "PFOS")) |> 
-  mutate(Time = Time/10) |> 
-  filter(Time > 0.2) |> 
-  pivot_longer(median:q75, names_to = "stat", values_to = "Value") |> 
-  pivot_wider(names_from = Tissue, values_from = Value) |> 
-  mutate("LPR" = Liver/Plasma,
-         "KPR" = Kidney/Plasma) |> 
-  select(!c(Kidney, Liver, Plasma)) |> 
-  pivot_longer(LPR:KPR, names_to = "Tissue", values_to = "Value") |> 
-  pivot_wider(names_from = stat, values_from = Value) 
-
-KPR <- Ratios |> 
-  filter(Tissue == "KPR") |>  
-  group_by(PFAS) |>
-  summarise(across(median:q75, .fns =
-                   list(median = ~median(.,na.rm = TRUE),
-                        mean = ~mean(.,na.rm = TRUE),
-                        q25 = ~quantile(., 0.25, na.rm = TRUE),
-                        q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
-  pivot_longer(!PFAS, 
-               names_to = "Variable",
-               values_to = "Value") |> 
-  filter(Variable %in% c("median_median",
-                         "q25_q25",
-                         "q75_q75")) |> 
-  separate(Variable, into = c("Keep", "not")) |> 
-  select(!not) |> 
-  pivot_wider(names_from = Keep, values_from = Value) |> 
-  mutate(Parameter = "KPR")
-
-LPR <- Ratios |> 
-  filter(Tissue == "LPR") |>  
-  group_by(PFAS) |>
-  summarise(across(median:q75, .fns =
-                     list(median = ~median(.,na.rm = TRUE),
-                          mean = ~mean(.,na.rm = TRUE),
-                          q25 = ~quantile(., 0.25, na.rm = TRUE),
-                          q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
-  pivot_longer(!PFAS, 
-               names_to = "Variable",
-               values_to = "Value") |> 
-  filter(Variable %in% c("median_median",
-                         "q25_q25",
-                         "q75_q75")) |> 
-  separate(Variable, into = c("Keep", "not")) |> 
-  select(!not) |> 
-  pivot_wider(names_from = Keep, values_from = Value) |> 
-  mutate(Parameter = "LPR")
-
-Ratios <- rbind(KPR, LPR)
-
-Measured_ratios <- Measured_df |>
-  filter(Parameter %in% c("RK/P", "RL/P")) |> 
-  select(PFAS, Parameter, Value, Range_CV_Std_min, Range_CV_Std_max) |> 
-  rename(min = Range_CV_Std_min,
-         max = Range_CV_Std_max) |> 
-  mutate(Parameter = str_replace_all(Parameter, c("RK/P" = "KPR",
-                                                  "RL/P" = "LPR"))) |> 
-  mutate(min = as.numeric(min),
-         max = as.numeric(max),
-         Value = as.numeric(Value))
-
-
-ObsVsPred_Ratios_plot <- ggplot() +
-  geom_pointrange(data = Ratios,
-                aes(x = PFAS,
-                    y = median,
-                    ymin = q25,
-                    ymax = q75),
-                size = .1,
-                linewidth = .1,
-                colour = "purple") + 
-  geom_point(data = Measured_ratios,
-                  aes(x = PFAS,
-                      y = Value),
-                  # width = .01,
-                  colour = "black"
-                  ) +
-  facet_wrap(~Parameter, 
-             labeller = as_labeller(c("KPR" = "Kidney/Plasma ratio",
-                                      "LPR" = "Liver/Plasma ratio"))
-             ) +
-  labs(x = "",
-       y = "Tissue / Plasma ratio",
-       subtitle = "Purple: predicted; Black:measured ")
-  theme_quick
-
-
-
-ObsVsPred_Ratios_plot <- ObsVsPred_Ratios_plot + CP_theme 
-
-ggsave(plot = ObsVsPred_Ratios_plot,
-       file = here(OUTPUT, "ObsVsPred_Ratios_plot.png"),
-       dpi = 600,
-       width = 12,
-       height = 9,
-       units = "cm")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 
+# 
+# Ratios <- C_df |>
+#   select(!"...1") |> 
+#   filter(Tissue %in% c("Plasma", "Kidney", "Liver"),
+#          PFAS %in% c("PFOA", "PFNA", "PFHxS", "PFOS")) |> 
+#   mutate(Time = Time) |> 
+#   filter(Time > 0.2) |> 
+#   pivot_longer(median:q75, names_to = "stat", values_to = "Value") |> 
+#   pivot_wider(names_from = Tissue, values_from = Value) |> 
+#   mutate("LPR" = Liver/Plasma,
+#          "KPR" = Kidney/Plasma) |> 
+#   select(!c(Kidney, Liver, Plasma)) |> 
+#   pivot_longer(LPR:KPR, names_to = "Tissue", values_to = "Value") |> 
+#   pivot_wider(names_from = stat, values_from = Value) 
+# 
+# KPR <- Ratios |> 
+#   filter(Tissue == "KPR") |>  
+#   group_by(PFAS) |>
+#   summarise(across(median:q75, .fns =
+#                    list(median = ~median(.,na.rm = TRUE),
+#                         mean = ~mean(.,na.rm = TRUE),
+#                         q25 = ~quantile(., 0.25, na.rm = TRUE),
+#                         q75 = ~quantile(.,0.75, na.rm = TRUE)))) |> 
+#   pivot_longer(!PFAS, 
+#                names_to = "Variable",
+#                values_to = "Value") |> 
+#   filter(Variable %in% c("median_median",
+#                          "q25_q25",
+#                          "q75_q75")) |> 
+#   separate(Variable, into = c("Keep", "not")) |> 
+#   select(!not) |> 
+#   pivot_wider(names_from = Keep, values_from = Value) |> 
+#   mutate(Parameter = "KPR")
+# 
+# LPR <- Ratios |> 
+#   filter(Tissue == "LPR") |>  
+#   group_by(PFAS) |>
+#   summarise(across(median:q75, .fns =
+#                      list(median = ~median(.,na.rm = TRUE),
+#                           mean = ~mean(.,na.rm = TRUE),
+#                           q25 = ~quantile(., 0.25, na.rm = TRUE),
+#                           q75 = ~quantile(.,0.75, na.rm = TRUE),
+#                           min = ~min(.,na.rm = TRUE),
+#                           max = ~max(.,na.rm = TRUE)
+#                           ))) |> 
+#   pivot_longer(!PFAS, 
+#                names_to = "Variable",
+#                values_to = "Value") |> 
+#   filter(Variable %in% c("median_median",
+#                          "q25_q25",
+#                          "q75_q75")) |> 
+#   separate(Variable, into = c("Keep", "not")) |> 
+#   select(!not) |> 
+#   pivot_wider(names_from = Keep, values_from = Value) |> 
+#   mutate(Parameter = "LPR")
+# 
+# Ratios <- rbind(KPR, LPR)
+# 
+# Measured_ratios <- Measured_df |>
+#   filter(Parameter %in% c("RK/P", "RL/P")) |> 
+#   select(PFAS, Parameter, Value, Range_CV_Std_min, Range_CV_Std_max) |> 
+#   rename(min = Range_CV_Std_min,
+#          max = Range_CV_Std_max) |> 
+#   mutate(Parameter = str_replace_all(Parameter, c("RK/P" = "KPR",
+#                                                   "RL/P" = "LPR"))) |> 
+#   mutate(min = as.numeric(min),
+#          max = as.numeric(max),
+#          Value = as.numeric(Value))
+# 
+# 
+# ObsVsPred_Ratios_plot <- ggplot() +
+#   geom_pointrange(data = Ratios,
+#                 aes(x = PFAS,
+#                     y = median,
+#                     ymin = q25,
+#                     ymax = q75),
+#                 size = .1,
+#                 linewidth = .1,
+#                 colour = "purple") + 
+#   geom_point(data = Measured_ratios,
+#                   aes(x = PFAS,
+#                       y = Value),
+#                   # width = .01,
+#                   colour = "black"
+#                   ) +
+#   facet_wrap(~Parameter, 
+#              labeller = as_labeller(c("KPR" = "Kidney/Plasma ratio",
+#                                       "LPR" = "Liver/Plasma ratio"))
+#              ) +
+#   labs(x = "",
+#        y = "Tissue / Plasma ratio",
+#        subtitle = "Purple: predicted; Black:measured ")
+#   theme_quick
+# 
+# 
+# 
+# ObsVsPred_Ratios_plot <- ObsVsPred_Ratios_plot + CP_theme 
+# 
+# ggsave(plot = ObsVsPred_Ratios_plot,
+#        file = here(OUTPUT, "ObsVsPred_Ratios_plot.png"),
+#        dpi = 600,
+#        width = 12,
+#        height = 9,
+#        units = "cm")
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
