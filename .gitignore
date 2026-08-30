@@ -1,3 +1,6 @@
-/NotOnGit/
+NotOnGit/
 .RData
 .Rproj.user
+.Ruserdata
+.positai
+.Rhistory
