@@ -171,8 +171,8 @@ calc_TK_summary_results <- function(raw_TK_results){
                             mean = ~mean(.,na.rm = TRUE),
                             q25 = ~quantile(., 0.25, na.rm = TRUE),
                             q75 = ~quantile(.,0.75, na.rm = TRUE),
-                            min = ~min(.,na.rm = TRUE),
-                            max = ~max(.,na.rm = TRUE)
+                            q025 = ~quantile(., 0.025, na.rm = TRUE),
+                            q975 = ~quantile(.,0.975, na.rm = TRUE)
                             ))) |>
     pivot_longer(everything(), names_to = "Variable",
                  values_to = "Value")  |>
@@ -197,8 +197,8 @@ calc_C_summary <- function(C_all_df, Tissue_j){
                             mean = ~mean(.,na.rm = TRUE),
                             q25 = ~quantile(., 0.25, na.rm = TRUE),
                             q75 = ~quantile(.,0.75, na.rm = TRUE),
-                            min = ~min(.,na.rm = TRUE),
-                            max = ~max(.,na.rm = TRUE)
+                            q025 = ~quantile(., 0.025, na.rm = TRUE),
+                            q975 = ~quantile(.,0.975, na.rm = TRUE)
                             )))  |>
     pivot_longer(everything(), names_to = "Variable",
                  values_to = "Value") |>
@@ -216,8 +216,8 @@ plot_per_tissue <- function(C_sum){
   Tissue_i <- unique(C_sum$Tissue)
   
   C_plot <- ggplot(C_sum, aes(Time, median)) +
-    geom_ribbon(aes(ymin = q25,
-                    ymax = q75),
+    geom_ribbon(aes(ymin = q025,
+                    ymax = q975),
                 fill = "grey70") +
     geom_path()+
     labs(title = paste0(PFAS_i),
@@ -232,8 +232,8 @@ plot_per_tissue <- function(C_sum){
 plot_all_tissues <- function(C_ts){
   
   C_ts_plot <- ggplot(C_ts, aes(Time, median)) +
-    geom_ribbon(aes(ymin = q25,
-                    ymax = q75),
+    geom_ribbon(aes(ymin = q025,
+                    ymax = q975),
                 fill = "grey70") +
     geom_path() +
     facet_wrap(~ Tissue, scales = "free", nrow = 2) +

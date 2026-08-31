@@ -263,25 +263,28 @@ for (i in 1:nPFAS) {
   # 
   # Model_params <- rbind(Physio_params, PhysChemTK_params)
   # 
-  # eFAST_parms <- c(
-  #   "logD_AlbuminWater",
-  #   "SF_OAT4",
-  #   "BW",
-  #   "logD_MembraneLipidWater",
-  #   "SF_OATP2B1_I",
-  #   "SF_NTCP",
-  #   "SF_BSEP",
-  #   "logD_GlobulinWater",
-  #   "SF_OAT3",
-  #   "Calb_P",
-  #   "logD_StructuralProteinWater",
-  #   "GFR",
-  #   "VAc",
-  #   "Qmenses",
-  #   "SF_OATP1B1",
-  #   "Clear_NTCPc",
-  #   "Papp_SI"
-  #   )
+  eFAST_parms <- c(
+    "logD_AlbuminWater", # mean mu and mean sd above 1
+    "SF_OAT4", # mean mu and mean sd above 1
+    "logD_MembraneLipidWater", # mean mu and mean sd above 1
+    "BW", # mean mu and mean sd above 1
+    "SF_OATP2B1_I", # mean mu and mean sd above 1
+    "Calb_P", # mean mu and mean sd above 1
+    "SF_BSEP", # mean mu and mean sd above 1
+    "SF_OATP1B1", # mean mu and mean sd above 1
+    "GFR", # mean mu and mean sd above 1
+    "logD_GlobulinWater", # mean mu and mean sd above 1
+    
+    "Papp_SI", # mean sd above 1
+    "SF_NTCP", # mean sd above 1
+    
+    "logD_StructuralProteinWater", # within the 4 most highly ranked for PFTrDA, 8th PFDoDA, PFUnDA
+    "SF_OAT3", # within the 3 most highly ranked for PFBA, PFPeA; 10 most for PFHxA, HPFO-DA
+    
+    "SF_OAT1",
+    "Clear_OAT4c"
+    
+    )
   # 
   # params_qlnorm <- c(
   #   "logD_AlbuminWater",
