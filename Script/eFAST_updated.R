@@ -108,13 +108,13 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "29August501_correctedSFmin") 
+OUTPUT <- here("Output", "eFAST_31Aug") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
 
 PFAS_list <- c(
-  "PFTrDA",
+  # "PFTrDA",
   "PFDoDA",
   "PFUnDA",
   "PFDA",
@@ -240,29 +240,29 @@ for (i in 1:nPFAS) {
   PFAS_i <- PFAS_list[i]
   message(glue("{PFAS_i}------------------------------------"))
   
-  # # physiological parameters; 
-  # Physio_params <- tibble(
-  #   Parameter = SA_Physio_params$Abbreviation,
-  #   Value = SA_Physio_params$Value,
-  #   binf = SA_Physio_params$Binf,
-  #   bsup = SA_Physio_params$Bsup
-  # )
-  # 
-  # Dose_ug_day <- filter(Dose_df, PFAS == PFAS_i) |>
-  #   select(Dose) |> pull()
-  # 
-  # PhysChemTK_params <- SA_TK_params |>
-  #   filter(PFAS == PFAS_i) |>
-  #   mutate(Value = ifelse(PBK_mechanism == "Distribution", exp(Value),
-  #                         ifelse(PBK_mechanism == "Absorption", exp(Value),
-  #                                Value)),
-  #   binf = min,
-  #   bsup = max
-  #   ) |>
-  #   select(Parameter, Value, binf, bsup)
-  # 
-  # Model_params <- rbind(Physio_params, PhysChemTK_params)
-  # 
+  # physiological parameters;
+  Physio_params <- tibble(
+    Parameter = SA_Physio_params$Abbreviation,
+    Value = SA_Physio_params$Value,
+    binf = SA_Physio_params$Binf,
+    bsup = SA_Physio_params$Bsup
+  )
+
+  Dose_ug_day <- filter(Dose_df, PFAS == PFAS_i) |>
+    select(Dose) |> pull()
+
+  PhysChemTK_params <- SA_TK_params |>
+    filter(PFAS == PFAS_i) |>
+    mutate(Value = ifelse(PBK_mechanism == "Distribution", exp(Value),
+                          ifelse(PBK_mechanism == "Absorption", exp(Value),
+                                 Value)),
+    binf = min,
+    bsup = max
+    ) |>
+    select(Parameter, Value, binf, bsup)
+
+  Model_params <- rbind(Physio_params, PhysChemTK_params)
+
   eFAST_parms <- c(
     "logD_AlbuminWater", # mean mu and mean sd above 1
     "SF_OAT4", # mean mu and mean sd above 1
@@ -274,307 +274,306 @@ for (i in 1:nPFAS) {
     "SF_OATP1B1", # mean mu and mean sd above 1
     "GFR", # mean mu and mean sd above 1
     "logD_GlobulinWater", # mean mu and mean sd above 1
-    
+
     "Papp_SI", # mean sd above 1
     "SF_NTCP", # mean sd above 1
-    
+
     "logD_StructuralProteinWater", # within the 4 most highly ranked for PFTrDA, 8th PFDoDA, PFUnDA
     "SF_OAT3", # within the 3 most highly ranked for PFBA, PFPeA; 10 most for PFHxA, HPFO-DA
-    
+
     "SF_OAT1",
     "Clear_OAT4c"
-    
     )
-  # 
-  # params_qlnorm <- c(
-  #   "logD_AlbuminWater",
-  #   "logD_MembraneLipidWater",
-  #   "logD_GlobulinWater",
-  #   "logD_StructuralProteinWater",
-  #   "Clear_NTCPc",
-  #   "Papp_SI"
-  # )
-  # 
-  # eFAST_TK_params <- SA_TK_params |> 
-  #   filter(PFAS == PFAS_i,
-  #          Parameter %in% eFAST_parms) |> 
-  #   select(Parameter, Value, RSE, Distribution) |> 
-  #   mutate(Value = ifelse(Parameter == "Clear_NTCPc", log(Value), Value)) |> 
-  #   transmute(Parameter = Parameter, 
-  #             Value = Value,
-  #             meanlog = ifelse(Parameter %in% params_qlnorm, Value, NA),
-  #             sdlog = ifelse(Parameter %in% params_qlnorm, RSE, NA),
-  #             min = ifelse(Parameter %in% params_qlnorm, NA, 1),
-  #             max = ifelse(Parameter %in% params_qlnorm, NA, Value),
-  #             Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))  
-  #    
-  # eFAST_phys_params <- Physio_params |> 
-  #   filter(Parameter %in% eFAST_parms) |> 
-  #   transmute(Parameter = Parameter, 
-  #             Value = Value, 
-  #             meanlog = ifelse(Parameter %in% params_qlnorm, Value, NA),
-  #             sdlog = ifelse(Parameter %in% params_qlnorm, RSE, NA),
-  #             min = ifelse(Parameter %in% params_qlnorm, NA, binf),
-  #             max = ifelse(Parameter %in% params_qlnorm, NA, bsup),
-  #             Distribution = "qunif")  
-  # eFAST_Ps <- full_join(eFAST_TK_params, eFAST_phys_params)
-  # 
-  # # P <- eFAST_parms
-  # parm.c <- as.list(setNames(Model_params$Value, Model_params$Parameter))
-  # 
-  # ## eFAST experiment design ----
-  # 
-  # eFAST_parms <- eFAST_Ps$Parameter
-  # eFAST_factors <- length(eFAST_parms)
-  # 
-  # set.seed(1234) # set seeds for reproducibility
-  # 
-  # # Define q: q needs to be a list of character strings, giving the names of the quantile functions
-  # q <- eFAST_Ps$Distribution
-  # 
-  # # Define q.arg: q.arg needs to be a list of lists
-  # 
-  # q.arg <- lapply(1:eFAST_factors, function(i) { # apply the function to eachone of the rows of P
-  #   if (eFAST_Ps$Distribution[i] == "qunif") { #if the distribution in uniform
-  #     list(min = eFAST_Ps$min[i], max = eFAST_Ps$max[i]) #create a list containing min (Bing of row i) and max (Bsup of row i) per row
-  #   } else {
-  #     list(meanlog = eFAST_Ps$meanlog[i], sdlog = eFAST_Ps$sdlog[i]) #if not then create a list containing mean and sdlog
-  #   }
-  # })
-  # 
-  # length(q) == length(q.arg)
-  # names(q) = names(q.arg) = eFAST_parms
-  # 
-  # 
-  # # eFAST test function
-  # Experience <- fast99(
-  #   model = NULL, 
-  #   factors = eFAST_parms, # These are the parameters that will be varying in the model
-  #   n = 501,# Integer giving the sample size, i.e. the length of the discretization of the s-space
-  #   q = q,
-  #   q.arg = q.arg
-  # )
-  # 
-  # # create the final eFAST design and remove infinite values if any
-  # 
-  # dim(Experience$X) # dataframe of: n factors(number of parameters) * n n(1000) number of observations, of n factors(number of parameters) number of variables
-  # eFAST_design <- Experience$X |>
-  #   as.data.frame() |>
-  #   mutate(across(everything(), ~na_if(., Inf))) |>
-  #   drop_na()
-  # colnames(eFAST_design) <- eFAST_parms
-  # dim(eFAST_design)
-  # 
-  # # visualise and save design
-  # Design_plot <- eFAST_design |>
-  #   pivot_longer(everything(),
-  #                names_to = "Parameter",
-  #                values_to = "Value") |>
-  #   ggplot(aes(x=Value))+
-  #   geom_histogram()+
-  #   facet_wrap(~Parameter, scales = "free_y", nrow=5)+
-  #   coord_flip()+
-  #   labs(title = paste0(PFAS_i," eFAST test parameter distributions"),
-  #        y = "Frequency",
-  #        x = "Value (different unit per parameter)") +
-  #   theme_quick
-  # Design_plot
-  # 
-  # Design_plot <- Design_plot + Patchwork_theme +
-  #   theme(axis.text.x = element_text(angle = 0))
-  # 
-  # ggsave(plot = Design_plot,
-  #        file = here(OUTPUT, paste0(PFAS_i,"_eFAST_ExpDesign.png")),
-  #        dpi = 600,
-  #        width = 18,
-  #        height = 24,
-  #        units = "cm")
-  # 
-  # write.csv(eFAST_design,
-  #           file = here(OUTPUT, paste0(PFAS_i,"_eFAST_ExpDesign.csv")),
-  #           row.names = FALSE)
-  # 
-  # results <- apply(eFAST_design, 1, function(row) {
-  #   run_eFAST(row, parm.c = parm.c)  
-  # })
-  # 
-  # y <- results
-  # y <- as.data.frame(y) 
-  # savey = y
-  # save(savey, file = here(OUTPUT, paste0(PFAS_i,"_eFAST_y.RData")))
-  # 
-  # # load(here(OUTPUT, paste0(PFAS_i,"_eFAST_y.RData")))
-  # # y <- savey
-  # # y <- t(y) %>% na.omit() %>% t()
-  # sim.results.eFAST <- as.matrix(y)
-  # 
-  # Experience_HL <- Experience
-  # tell(Experience_HL, sim.results.eFAST[2,])
-  # plot(Experience_HL)
-  # print(paste0(PFAS_i, " HL"))
-  # print(Experience_HL)
-  # 
-  # # Experience_Cmax <- Experience
-  # # tell(Experience_Cmax, sim.results.eFAST[1,])
-  # # plot(Experience_Cmax)
-  # # paste0(PFAS_i, " Cmax")  
-  # # print(Experience_Cmax)
-  # 
-  # Experience_AUC <- Experience
-  # tell(Experience_AUC, sim.results.eFAST[1,])
-  # plot(Experience_AUC)
-  # print(paste0(PFAS_i, " AUC"))  
-  # print(Experience_AUC)
-  # 
+
+  params_qlnorm <- c(
+    "logD_AlbuminWater",
+    "logD_MembraneLipidWater",
+    "logD_GlobulinWater",
+    "logD_StructuralProteinWater",
+    "Clear_OAT4c",
+    "Papp_SI"
+  )
+
+  eFAST_TK_params <- SA_TK_params |>
+    filter(PFAS == PFAS_i,
+           Parameter %in% eFAST_parms) |>
+    select(Parameter, Value, RSE, Distribution) |>
+    mutate(Value = ifelse(Parameter == "Clear_OAT4c", log(Value), Value)) |>
+    transmute(Parameter = Parameter,
+              Value = Value,
+              meanlog = ifelse(Parameter %in% params_qlnorm, Value, NA),
+              sdlog = ifelse(Parameter %in% params_qlnorm, RSE, NA),
+              min = ifelse(Parameter %in% params_qlnorm, NA, 1),
+              max = ifelse(Parameter %in% params_qlnorm, NA, Value),
+              Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))
+
+  eFAST_phys_params <- Physio_params |>
+    filter(Parameter %in% eFAST_parms) |>
+    transmute(Parameter = Parameter,
+              Value = Value,
+              meanlog = ifelse(Parameter %in% params_qlnorm, Value, NA),
+              sdlog = ifelse(Parameter %in% params_qlnorm, RSE, NA),
+              min = ifelse(Parameter %in% params_qlnorm, NA, binf),
+              max = ifelse(Parameter %in% params_qlnorm, NA, bsup),
+              Distribution = "qunif")
+  eFAST_Ps <- full_join(eFAST_TK_params, eFAST_phys_params)
+
+  # P <- eFAST_parms
+  parm.c <- as.list(setNames(Model_params$Value, Model_params$Parameter))
+
+  ## eFAST experiment design ----
+
+  eFAST_parms <- eFAST_Ps$Parameter
+  eFAST_factors <- length(eFAST_parms)
+
+  set.seed(1234) # set seeds for reproducibility
+
+  # Define q: q needs to be a list of character strings, giving the names of the quantile functions
+  q <- eFAST_Ps$Distribution
+
+  # Define q.arg: q.arg needs to be a list of lists
+
+  q.arg <- lapply(1:eFAST_factors, function(i) { # apply the function to eachone of the rows of P
+    if (eFAST_Ps$Distribution[i] == "qunif") { #if the distribution in uniform
+      list(min = eFAST_Ps$min[i], max = eFAST_Ps$max[i]) #create a list containing min (Bing of row i) and max (Bsup of row i) per row
+    } else {
+      list(meanlog = eFAST_Ps$meanlog[i], sdlog = eFAST_Ps$sdlog[i]) #if not then create a list containing mean and sdlog
+    }
+  })
+
+  length(q) == length(q.arg)
+  names(q) = names(q.arg) = eFAST_parms
+
+
+  # eFAST test function
+  Experience <- fast99(
+    model = NULL,
+    factors = eFAST_parms, # These are the parameters that will be varying in the model
+    n = 501,# Integer giving the sample size, i.e. the length of the discretization of the s-space
+    q = q,
+    q.arg = q.arg
+  )
+
+  # create the final eFAST design and remove infinite values if any
+
+  dim(Experience$X) # dataframe of: n factors(number of parameters) * n n(1000) number of observations, of n factors(number of parameters) number of variables
+  eFAST_design <- Experience$X |>
+    as.data.frame() |>
+    mutate(across(everything(), ~na_if(., Inf))) |>
+    drop_na()
+  colnames(eFAST_design) <- eFAST_parms
+  dim(eFAST_design)
+
+  # visualise and save design
+  Design_plot <- eFAST_design |>
+    pivot_longer(everything(),
+                 names_to = "Parameter",
+                 values_to = "Value") |>
+    ggplot(aes(x=Value))+
+    geom_histogram()+
+    facet_wrap(~Parameter, scales = "free_y", nrow=5)+
+    coord_flip()+
+    labs(title = paste0(PFAS_i," eFAST test parameter distributions"),
+         y = "Frequency",
+         x = "Value (different unit per parameter)") +
+    theme_quick
+  Design_plot
+
+  Design_plot <- Design_plot + Patchwork_theme +
+    theme(axis.text.x = element_text(angle = 0))
+
+  ggsave(plot = Design_plot,
+         file = here(OUTPUT, paste0(PFAS_i,"_eFAST_ExpDesign.png")),
+         dpi = 600,
+         width = 18,
+         height = 24,
+         units = "cm")
+
+  write.csv(eFAST_design,
+            file = here(OUTPUT, paste0(PFAS_i,"_eFAST_ExpDesign.csv")),
+            row.names = FALSE)
+
+  results <- apply(eFAST_design, 1, function(row) {
+    run_eFAST(row, parm.c = parm.c)
+  })
+
+  y <- results
+  y <- as.data.frame(y)
+  savey = y
+  save(savey, file = here(OUTPUT, paste0(PFAS_i,"_eFAST_y.RData")))
+
+  # load(here(OUTPUT, paste0(PFAS_i,"_eFAST_y.RData")))
+  # y <- savey
+  # y <- t(y) %>% na.omit() %>% t()
+  sim.results.eFAST <- as.matrix(y)
+
+  Experience_HL <- Experience
+  tell(Experience_HL, sim.results.eFAST[2,])
+  plot(Experience_HL)
+  print(paste0(PFAS_i, " HL"))
+  print(Experience_HL)
+
+  # Experience_Cmax <- Experience
+  # tell(Experience_Cmax, sim.results.eFAST[1,])
+  # plot(Experience_Cmax)
+  # paste0(PFAS_i, " Cmax")
+  # print(Experience_Cmax)
+
+  Experience_AUC <- Experience
+  tell(Experience_AUC, sim.results.eFAST[1,])
+  plot(Experience_AUC)
+  print(paste0(PFAS_i, " AUC"))
+  print(Experience_AUC)
+
+  Experience_Global <- Experience
+  # Tell eFAST y for each model output
+  for (i in (1:length(sim.results.eFAST[,1])))
+  {
+    tell(Experience_Global, sim.results.eFAST[i,])
+  }
+  plot(Experience_Global)
+  paste0(PFAS_i, " Global")
+  print(Experience_Global)
+
+
   # Experience_Global <- Experience
   # # Tell eFAST y for each model output
-  # for (i in (1:length(sim.results.eFAST[,1])))
+  # for (i in (1:2)) #length(sim.results.eFAST[,1])))
   # {
-  #   tell(Experience_Global, sim.results.eFAST[i,])
+  #   tell(Experience_Global2, sim.results.eFAST[i,])
   # }
-  # plot(Experience_Global)
-  # paste0(PFAS_i, " Global")  
-  # print(Experience_Global)
-  # 
-  # 
-  # # Experience_Global <- Experience
-  # # # Tell eFAST y for each model output
-  # # for (i in (1:2)) #length(sim.results.eFAST[,1])))
-  # # {
-  # #   tell(Experience_Global2, sim.results.eFAST[i,])
-  # # }
-  # # plot(Experience_Global2)
-  # # paste0(PFAS_i, " Global2")  
-  # # print(Experience_Global2)
-  # # 
-  # # Variance <- Experience$V # Total variance
-  # # Done <- Experience$D1
-  # # Dt <- Experience$Dt
-  # # first_order <- Done / max(Variance)  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
-  # # total_order <- Dt / max(Variance) #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  # # 
-  # # names(Variance) <- names(Done) <- names(Dt) <- names(first_order) <- names(total_order) <- eFAST_parms
-  # 
-  # lowry_data_HL <- data.frame(
+  # plot(Experience_Global2)
+  # paste0(PFAS_i, " Global2")
+  # print(Experience_Global2)
+  #
+  # Variance <- Experience$V # Total variance
+  # Done <- Experience$D1
+  # Dt <- Experience$Dt
+  # first_order <- Done / max(Variance)  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
+  # total_order <- Dt / max(Variance) #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
+  #
+  # names(Variance) <- names(Done) <- names(Dt) <- names(first_order) <- names(total_order) <- eFAST_parms
+
+  lowry_data_HL <- data.frame(
+    Parameter = eFAST_parms,
+    Variance = Experience_HL$V,
+    Done = Experience_HL$D1,
+    Dt = Experience_HL$Dt) |>
+    mutate(
+      Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
+      Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
+      Output = "HL"
+    ) |>
+    arrange(desc(Main.Effect)) %>%
+    mutate(
+      Parameter = factor(Parameter, levels = Parameter),
+      Total.effect = Main.Effect + Interaction,
+      Cumulative.main = cumsum(Main.Effect),
+      Cumulative.total = cumsum(Total.effect),
+      ymin = Cumulative.main,
+      ymax = pmin(Cumulative.total, 1),
+      n = seq(1,16, by = 1))
+
+  # lowry_data_Cmax <- data.frame(
   #   Parameter = eFAST_parms,
-  #   Variance = Experience_HL$V, 
-  #   Done = Experience_HL$D1, 
-  #   Dt = Experience_HL$Dt) |> 
+  #   Variance = Experience_Cmax$V,
+  #   Done = Experience_Cmax$D1,
+  #   Dt = Experience_Cmax$Dt) |>
   #   mutate(
   #     Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
   #     Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  #     Output = "HL"
-  #   ) |> 
-  #   arrange(desc(Main.Effect)) %>% 
+  #     Output = "Cmax"
+  #   ) |>
+  #   arrange(desc(Main.Effect)) %>%
   #   mutate(
   #     Parameter = factor(Parameter, levels = Parameter),
   #     Total.effect = Main.Effect + Interaction,
   #     Cumulative.main = cumsum(Main.Effect),
   #     Cumulative.total = cumsum(Total.effect),
-  #     ymin = Cumulative.main, 
+  #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,17, by = 1))
-  # 
-  # # lowry_data_Cmax <- data.frame(
-  # #   Parameter = eFAST_parms,
-  # #   Variance = Experience_Cmax$V, 
-  # #   Done = Experience_Cmax$D1, 
-  # #   Dt = Experience_Cmax$Dt) |> 
-  # #   mutate(
-  # #     Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
-  # #     Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  # #     Output = "Cmax"
-  # #   ) |> 
-  # #   arrange(desc(Main.Effect)) %>% 
-  # #   mutate(
-  # #     Parameter = factor(Parameter, levels = Parameter),
-  # #     Total.effect = Main.Effect + Interaction,
-  # #     Cumulative.main = cumsum(Main.Effect),
-  # #     Cumulative.total = cumsum(Total.effect),
-  # #     ymin = Cumulative.main, 
-  # #     ymax = pmin(Cumulative.total, 1),
-  # #     n = seq(1,17, by = 1))
-  # 
-  # lowry_data_AUC <- data.frame(
+  #     n = seq(1,16, by = 1))
+
+  lowry_data_AUC <- data.frame(
+    Parameter = eFAST_parms,
+    Variance = Experience_AUC$V,
+    Done = Experience_AUC$D1,
+    Dt = Experience_AUC$Dt) |>
+    mutate(
+      Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
+      Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
+      Output = "AUC"
+    ) |>
+    arrange(desc(Main.Effect)) %>%
+    mutate(
+      Parameter = factor(Parameter, levels = Parameter),
+      Total.effect = Main.Effect + Interaction,
+      Cumulative.main = cumsum(Main.Effect),
+      Cumulative.total = cumsum(Total.effect),
+      ymin = Cumulative.main,
+      ymax = pmin(Cumulative.total, 1),
+      n = seq(1,16, by = 1))
+
+  # lowry_data_Global2 <- data.frame(
   #   Parameter = eFAST_parms,
-  #   Variance = Experience_AUC$V, 
-  #   Done = Experience_AUC$D1, 
-  #   Dt = Experience_AUC$Dt) |> 
+  #   Variance = Experience_Global2$V,
+  #   Done = Experience_Global2$D1,
+  #   Dt = Experience_Global2$Dt) |>
   #   mutate(
   #     Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
   #     Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  #     Output = "AUC"
-  #   ) |> 
-  #   arrange(desc(Main.Effect)) %>% 
+  #     Output = "Global2"
+  #   ) |>
+  #   arrange(desc(Main.Effect)) %>%
   #   mutate(
   #     Parameter = factor(Parameter, levels = Parameter),
   #     Total.effect = Main.Effect + Interaction,
   #     Cumulative.main = cumsum(Main.Effect),
   #     Cumulative.total = cumsum(Total.effect),
-  #     ymin = Cumulative.main, 
+  #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,17, by = 1))
-  # 
-  # # lowry_data_Global2 <- data.frame(
-  # #   Parameter = eFAST_parms,
-  # #   Variance = Experience_Global2$V, 
-  # #   Done = Experience_Global2$D1, 
-  # #   Dt = Experience_Global2$Dt) |> 
-  # #   mutate(
-  # #     Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
-  # #     Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  # #     Output = "Global2"
-  # #   ) |> 
-  # #   arrange(desc(Main.Effect)) %>% 
-  # #   mutate(
-  # #     Parameter = factor(Parameter, levels = Parameter),
-  # #     Total.effect = Main.Effect + Interaction,
-  # #     Cumulative.main = cumsum(Main.Effect),
-  # #     Cumulative.total = cumsum(Total.effect),
-  # #     ymin = Cumulative.main, 
-  # #     ymax = pmin(Cumulative.total, 1),
-  # #     n = seq(1,17, by = 1))
-  # 
-  # lowry_data_Global <- data.frame(
-  #   Parameter = eFAST_parms,
-  #   Variance = Experience_Global$V, 
-  #   Done = Experience_Global$D1, 
-  #   Dt = Experience_Global$Dt) |> 
+  #     n = seq(1,16, by = 1))
+
+  lowry_data_Global <- data.frame(
+    Parameter = eFAST_parms,
+    Variance = Experience_Global$V,
+    Done = Experience_Global$D1,
+    Dt = Experience_Global$Dt) |>
+    mutate(
+      Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
+      Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
+      Output = "Global"
+    ) |>
+    arrange(desc(Main.Effect)) %>%
+    mutate(
+      Total.effect = Main.Effect + Interaction,
+      Cumulative.main = cumsum(Main.Effect),
+      Cumulative.total = cumsum(Total.effect),
+      ymin = Cumulative.main,
+      ymax = pmin(Cumulative.total, 1),
+      n = seq(1,16, by = 1))
+
+
+
+  lowry_data <- rbind(lowry_data_Global, lowry_data_HL, lowry_data_AUC) |> #lowry_data_Global2 lowry_data_Cmax
+    mutate(PFAS = PFAS_i)
+
+  write.csv(lowry_data, here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")), row.names = FALSE)
+  # lowry_data <- read.csv(here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")))
+
+  # ordered_data <- lowry_data %>%
+  #   arrange(desc(Main.Effect)) %>%
   #   mutate(
-  #     Main.Effect = Done / max(Variance),  # D1 is the estimated Variance of the Conditional Expectation (VCE) with respect to each factor, normalized by total variance,
-  #     Interaction = Dt / max(Variance), #1 - (Dt / Variance)  # Dt is the estimated VCE with respect to each factor complementary set of factors ("all but Xi"), normalized by total variance
-  #     Output = "Global"
-  #   ) |> 
-  #   arrange(desc(Main.Effect)) %>% 
-  #   mutate(
+  #     Parameter = factor(Parameter, levels = Parameter),
   #     Total.effect = Main.Effect + Interaction,
   #     Cumulative.main = cumsum(Main.Effect),
   #     Cumulative.total = cumsum(Total.effect),
-  #     ymin = Cumulative.main, 
+  #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,17, by = 1))
-  # 
-  # 
-  # 
-  # lowry_data <- rbind(lowry_data_Global, lowry_data_HL, lowry_data_AUC) |> #lowry_data_Global2 lowry_data_Cmax
-  #   mutate(PFAS = PFAS_i)
-  # 
-  # write.csv(lowry_data, here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")), row.names = FALSE)
-  # # lowry_data <- read.csv(here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")))
-  # 
-  # # ordered_data <- lowry_data %>%
-  # #   arrange(desc(Main.Effect)) %>% 
-  # #   mutate(
-  # #     Parameter = factor(Parameter, levels = Parameter),
-  # #     Total.effect = Main.Effect + Interaction,
-  # #     Cumulative.main = cumsum(Main.Effect),
-  # #     Cumulative.total = cumsum(Total.effect),
-  # #     ymin = Cumulative.main, 
-  # #     ymax = pmin(Cumulative.total, 1),
-  # #     n = seq(1,17, by = 1))
-  # # write.csv(ordered_data, here(OUTPUT, paste0(PFAS_i, "_eFAST_ordered_lowry_data.csv")), row.names = FALSE)
+  #     n = seq(1,16, by = 1))
+  # write.csv(ordered_data, here(OUTPUT, paste0(PFAS_i, "_eFAST_ordered_lowry_data.csv")), row.names = FALSE)
   
-  lowry_data <- read_csv(here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")))
+  # lowry_data <- read_csv(here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")))
 
   Outputs <- unique(lowry_data$Output)
   
@@ -650,6 +649,32 @@ for (i in 1:nPFAS) {
 }
 
 # Post process results ----
+
+
+PFAS_list <- c(
+  "PFTrDA",
+  "PFDoDA",
+  "PFUnDA",
+  "PFDA",
+  "PFOS",
+  "PFNA",
+  "PFHpS",
+  "PFOA",
+  "PFHxS",
+  "ADONA",
+  "PFHpA",
+  "PFPeS",
+  "HFPO-DA",
+  "PFHxA",
+  "PFBS",
+  "PFPeA",
+  "PFBA"
+)
+
+nPFAS <- length(PFAS_list)
+
+
+
 Lowry_df <-
   list.files(path = here(OUTPUT),
              pattern = "\\_eFAST_lowry_data.csv$") |>
@@ -713,9 +738,11 @@ Parm_order <- ordered_lowry |>
 select_for_plot <- ordered_lowry |>
   filter(Output != "Global") |> 
   # select(PFAS, Main.Effect, Parameter, Category_OECD, MW) |>
-  mutate(PFAS = factor(PFAS, PFAS_list),
-         Parameter = factor(Parameter, wide_ordered_lowry)) |> #Parm_order))
-  mutate(Output = ifelse(Output == "AUC", "AUC", "Half-life"))
+  mutate(PFAS = factor(PFAS,rev(PFAS_list)),
+         Parameter = factor(Parameter, Parm_order)) |> #Parm_order))
+  mutate(Output = ifelse(Output == "AUC", "AUC", "Half-life")) |> 
+  mutate(Output = factor(Output, levels = c("Half-life", "AUC")))
+
 eFAST_plot <-
   ggballoonplot(select_for_plot,
               x = "PFAS", y = "Parameter",
@@ -740,7 +767,7 @@ eFAST_plot <- eFAST_plot + Patchwork_theme +
   )
 
 ggsave(
-  file = here(OUTPUT,"allPFAS_eFAST_plot.png"),
+  file = here(OUTPUT,"allPFAS_eFAST_plot2.png"),
   plot = eFAST_plot,
   dpi = 600,
   width = 24,
