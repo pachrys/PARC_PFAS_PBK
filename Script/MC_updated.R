@@ -105,7 +105,7 @@ theme_quick <- theme_minimal() +
   )
 
 # Set output storage directory
-OUTPUT <- here("Output", "lastone") 
+OUTPUT <- here("Output", "Check_initial_results_100It") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -330,7 +330,7 @@ for (i in 1:nPFAS) {
   # this optimises the Monte Carlo sampling, also used by McNally & Loizou
   
   set.seed(10010) # set seeds for reproducibility
-  n = 15 # number of samples per parameter
+  n = 100 # number of samples per parameter
   X.LHS.MC.design <- randomLHS(n, MC.factors, preserveDraw = TRUE) # create lhs grid
   Y.LHS.MC.design <- matrix(0, nrow = n, ncol = MC.factors) # empty matrix to populate the parameters with
   
@@ -697,28 +697,29 @@ Measured_df <- read_excel(here("Input", "Evaluation_data.xlsx")) |>
 
 
 ## plot results ----
-### Plasma ----
-C_plasma_predicted_df <- C_df |>
-  filter(Tissue == "Plasma") 
+### Rest ----
+C_Rest_predicted_df <- C_df |>
+  filter(Tissue == "Rest") 
 
-C_plasma_predicted_df <- full_join(C_plasma_predicted_df, nC_MW_df) 
+C_Rest_predicted_df <- full_join(C_Rest_predicted_df, nC_MW_df) 
+C_Rest_predicted_df <- full_join(C_Rest_predicted_df, Dose_df) 
 
-CP_plot <- ggplot() +
-  geom_ribbon(data = C_plasma_predicted_df,
+CR_plot <- ggplot() +
+  geom_ribbon(data = C_Rest_predicted_df,
               aes(x = Time,
-                  ymin = q025,
-                  ymax = q975,
+                  ymin = q025/Dose,
+                  ymax = q975/Dose,
                   fill = Category_OECD),
-              alpha = 0.2) +
-  geom_ribbon(data = C_plasma_predicted_df,
+              alpha = 0.4) +
+  geom_ribbon(data = C_Rest_predicted_df,
               aes(x = Time,
-                  ymin = q25,
-                  ymax = q75,
+                  ymin = q25/Dose,
+                  ymax = q75/Dose,
                   fill = Category_OECD),
               alpha = 0.3) +
   scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
-  geom_path(data = C_plasma_predicted_df,
-            aes(Time, median,
+  geom_path(data = C_Rest_predicted_df,
+            aes(Time, median/Dose,
                 colour = Category_OECD)) +
   scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
   facet_wrap(~ factor(PFAS, c( #factor(n_C),
@@ -741,8 +742,257 @@ CP_plot <- ggplot() +
     "PFTrDA")
   ),
   nrow = 2) +
+  labs(x = "Time (years)",
+       y = "Concentration / dose",
+       title = "Rest") +
   theme_quick
+CR_plot
+# CR_plot <- CR_plot + Patchwork_theme +
+#   theme(legend.position = "bottom")
+# 
+# ggsave(plot = CR_plot,
+#        file = here(OUTPUT, "CR_plot_UA.png"),
+#        dpi = 600,
+#        width = 24,
+#        height = 11,
+#        units = "cm")
 
+
+
+### Adipose ----
+C_Adipose_predicted_df <- C_df |>
+  filter(Tissue == "Adipose") 
+
+C_Adipose_predicted_df <- full_join(C_Adipose_predicted_df, nC_MW_df) 
+C_Adipose_predicted_df <- full_join(C_Adipose_predicted_df, Dose_df) 
+
+CA_plot <- ggplot() +
+  geom_ribbon(data = C_Adipose_predicted_df,
+              aes(x = Time,
+                  ymin = q025/Dose,
+                  ymax = q975/Dose,
+                  fill = Category_OECD),
+              alpha = 0.4) +
+  geom_ribbon(data = C_Adipose_predicted_df,
+              aes(x = Time,
+                  ymin = q25/Dose,
+                  ymax = q75/Dose,
+                  fill = Category_OECD),
+              alpha = 0.3) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  geom_path(data = C_Adipose_predicted_df,
+            aes(Time, median/Dose,
+                colour = Category_OECD)) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  facet_wrap(~ factor(PFAS, c( #factor(n_C),
+    "PFBA",
+    "PFPeA",
+    "PFBS",
+    "PFHxA",
+    "HFPO-DA",
+    "PFPeS",
+    "PFHpA",
+    "ADONA",
+    "PFHxS",
+    "PFOA",
+    "PFHpS",
+    "PFNA",
+    "PFOS",
+    "PFDA",
+    "PFUnDA",
+    "PFDoDA",
+    "PFTrDA")
+  ),
+  nrow = 2) +
+  labs(x = "Time (years)",
+       y = "Concentration / dose",
+       title = "Adipose") +
+  theme_quick
+CA_plot
+# CA_plot <- CA_plot + Patchwork_theme +
+#   theme(legend.position = "bottom")
+# 
+# ggsave(plot = CA_plot,
+#        file = here(OUTPUT, "CA_plot_UA.png"),
+#        dpi = 600,
+#        width = 24,
+#        height = 11,
+#        units = "cm")
+
+
+### Kidney ----
+C_Kidney_predicted_df <- C_df |>
+  filter(Tissue == "Kidney") 
+
+C_Kidney_predicted_df <- full_join(C_Kidney_predicted_df, nC_MW_df) 
+C_Kidney_predicted_df <- full_join(C_Kidney_predicted_df, Dose_df) 
+
+CK_plot <- ggplot() +
+  geom_ribbon(data = C_Kidney_predicted_df,
+              aes(x = Time,
+                  ymin = q025/Dose,
+                  ymax = q975/Dose,
+                  fill = Category_OECD),
+              alpha = 0.4) +
+  geom_ribbon(data = C_Kidney_predicted_df,
+              aes(x = Time,
+                  ymin = q25/Dose,
+                  ymax = q75/Dose,
+                  fill = Category_OECD),
+              alpha = 0.3) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  geom_path(data = C_Kidney_predicted_df,
+            aes(Time, median/Dose,
+                colour = Category_OECD)) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  facet_wrap(~ factor(PFAS, c( #factor(n_C),
+    "PFBA",
+    "PFPeA",
+    "PFBS",
+    "PFHxA",
+    "HFPO-DA",
+    "PFPeS",
+    "PFHpA",
+    "ADONA",
+    "PFHxS",
+    "PFOA",
+    "PFHpS",
+    "PFNA",
+    "PFOS",
+    "PFDA",
+    "PFUnDA",
+    "PFDoDA",
+    "PFTrDA")
+  ),
+  nrow = 2) +
+  labs(x = "Time (years)",
+       y = "Concentration / dose",
+       title = "Kidney") +
+  theme_quick
+CK_plot
+# CK_plot <- CK_plot + Patchwork_theme +
+#   theme(legend.position = "bottom")
+# 
+# ggsave(plot = CK_plot,
+#        file = here(OUTPUT, "CK_plot_UA.png"),
+#        dpi = 600,
+#        width = 24,
+#        height = 11,
+#        units = "cm")
+
+### Liver ----
+C_liver_predicted_df <- C_df |>
+  filter(Tissue == "Liver") 
+
+C_liver_predicted_df <- full_join(C_liver_predicted_df, nC_MW_df) 
+C_liver_predicted_df <- full_join(C_liver_predicted_df, Dose_df) 
+
+CL_plot <- ggplot() +
+  geom_ribbon(data = C_liver_predicted_df,
+              aes(x = Time,
+                  ymin = q025/Dose,
+                  ymax = q975/Dose,
+                  fill = Category_OECD),
+              alpha = 0.4) +
+  geom_ribbon(data = C_liver_predicted_df,
+              aes(x = Time,
+                  ymin = q25/Dose,
+                  ymax = q75/Dose,
+                  fill = Category_OECD),
+              alpha = 0.3) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  geom_path(data = C_liver_predicted_df,
+            aes(Time, median/Dose,
+                colour = Category_OECD)) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  facet_wrap(~ factor(PFAS, c( #factor(n_C),
+    "PFBA",
+    "PFPeA",
+    "PFBS",
+    "PFHxA",
+    "HFPO-DA",
+    "PFPeS",
+    "PFHpA",
+    "ADONA",
+    "PFHxS",
+    "PFOA",
+    "PFHpS",
+    "PFNA",
+    "PFOS",
+    "PFDA",
+    "PFUnDA",
+    "PFDoDA",
+    "PFTrDA")
+  ),
+  nrow = 2) +
+  labs(x = "Time (years)",
+       y = "Concentration / dose",
+       title = "Liver") +
+  theme_quick
+CL_plot
+# CL_plot <- CL_plot + Patchwork_theme +
+#   theme(legend.position = "bottom")
+# 
+# ggsave(plot = CL_plot,
+#        file = here(OUTPUT, "CL_plot_UA.png"),
+#        dpi = 600,
+#        width = 24,
+#        height = 11,
+#        units = "cm")
+
+
+
+
+### Plasma ----
+C_plasma_predicted_df <- C_df |>
+  filter(Tissue == "Plasma") 
+
+C_plasma_predicted_df <- full_join(C_plasma_predicted_df, nC_MW_df) 
+C_plasma_predicted_df <- full_join(C_plasma_predicted_df, Dose_df) 
+
+CP_plot <- ggplot() +
+  geom_ribbon(data = C_plasma_predicted_df,
+              aes(x = Time,
+                  ymin = q025/Dose,
+                  ymax = q975/Dose,
+                  fill = Category_OECD),
+              alpha = 0.4) +
+  geom_ribbon(data = C_plasma_predicted_df,
+              aes(x = Time,
+                  ymin = q25/Dose,
+                  ymax = q75/Dose,
+                  fill = Category_OECD),
+              alpha = 0.3) +
+  scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  geom_path(data = C_plasma_predicted_df,
+            aes(Time, median/Dose,
+                colour = Category_OECD)) +
+  scale_color_viridis(option = "D", discrete = TRUE, end = 0.7) +
+  facet_wrap(~ factor(PFAS, c( #factor(n_C),
+    "PFBA",
+    "PFPeA",
+    "PFBS",
+    "PFHxA",
+    "HFPO-DA",
+    "PFPeS",
+    "PFHpA",
+    "ADONA",
+    "PFHxS",
+    "PFOA",
+    "PFHpS",
+    "PFNA",
+    "PFOS",
+    "PFDA",
+    "PFUnDA",
+    "PFDoDA",
+    "PFTrDA")
+  ),
+  nrow = 2) +
+  labs(x = "Time (years)",
+       y = "Concentration / dose",
+       title = "Plasma") +
+  theme_quick
+CP_plot
 # CP_plot <- CP_plot + Patchwork_theme +
 #   theme(legend.position = "top")
 # 
@@ -752,6 +1002,26 @@ CP_plot <- ggplot() +
 #        width = 24,
 #        height = 11,
 #        units = "cm")
+
+## Gather all compartment Cs ----
+
+OneC <- CP_plot
+TwoC <- CL_plot
+ThreeC <- CK_plot
+FourC <- CA_plot
+FiveC <- CR_plot
+
+Plot_Cs <- OneC/TwoC/ThreeC/FourC/FiveC +
+  plot_layout(nrow = 5, guides = "collect") &
+  Patchwork_theme +
+  theme(legend.position = "bottom")
+
+ggsave(plot = Plot_Cs,
+       file = here(OUTPUT, "Plot_Cs_UA.png"),
+       dpi = 600,
+       width = 18,
+       height = 24,
+       units = "cm")
 
 ### Half life ----
 
@@ -1004,7 +1274,7 @@ P_df <- list.files(path = here(OUTPUT),
   select(!"...2") |>
   # rename(Iteration = "...2") |>
   mutate(PFAS = str_replace_all(name,
-                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/lastone/",
+                                "C:/Users/Admin/Desktop/PhD_Chrysa/CP_L_R/PARC_PFAS_PBK/Output/Check_initial_results_100It/",
                                 "")) |>
   mutate(PFAS = str_replace_all(PFAS,
                                 "_final_model_parameters.csv","")) |>
@@ -1230,17 +1500,17 @@ Fa_MesPred_plot <- ggplot() +
   labs(x = "",y = "Fraction absorbed")+
   theme_quick
 Fa_MesPred_plot
-Fa_MesPred_plot <- Fa_MesPred_plot + Patchwork_theme +
-  theme(legend.position = "right",
-        axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
-  )
-
-ggsave(plot = Fa_MesPred_plot,
-       file = here(OUTPUT,"Fa_MesPred_plot.png"),
-       dpi = 600,
-       width = 16,
-       height = 11,
-       units = "cm")
+# Fa_MesPred_plot <- Fa_MesPred_plot + Patchwork_theme +
+#   theme(legend.position = "right",
+#         axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
+#   )
+# 
+# ggsave(plot = Fa_MesPred_plot,
+#        file = here(OUTPUT,"Fa_MesPred_plot.png"),
+#        dpi = 600,
+#        width = 16,
+#        height = 11,
+#        units = "cm")
 
 
 
@@ -1323,18 +1593,18 @@ HL_MesPred_plot <-
   theme_quick
 
 HL_MesPred_plot
-
-HL_MesPred_plot <- HL_MesPred_plot + Patchwork_theme +
-  theme(legend.position = "right",
-        axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
-  )
-
-ggsave(plot = HL_MesPred_plot,
-       file = here(OUTPUT,"HL_MesPred_plot.png"),
-       dpi = 600,
-       width = 16,
-       height = 11,
-       units = "cm")
+# 
+# HL_MesPred_plot <- HL_MesPred_plot + Patchwork_theme +
+#   theme(legend.position = "right",
+#         axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
+#   )
+# 
+# ggsave(plot = HL_MesPred_plot,
+#        file = here(OUTPUT,"HL_MesPred_plot.png"),
+#        dpi = 600,
+#        width = 16,
+#        height = 11,
+#        units = "cm")
 
 ## Against measured clearances ----
 
@@ -1378,17 +1648,17 @@ CL_MesPred_plot <- ggplot() +
 
 CL_MesPred_plot
 
-CL_MesPred_plot <- CL_MesPred_plot + Patchwork_theme +
-  theme(legend.position = "right",
-        axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
-  )
-
-ggsave(plot = CL_MesPred_plot,
-       file = here(OUTPUT,"CL_MesPred_plot.png"),
-       dpi = 600,
-       width = 16,
-       height = 11,
-       units = "cm")
+# CL_MesPred_plot <- CL_MesPred_plot + Patchwork_theme +
+#   theme(legend.position = "right",
+#         axis.text.x = element_text(size = 30, face = "bold", margin = margin(0, 0, 0, 0))
+#   )
+# 
+# ggsave(plot = CL_MesPred_plot,
+#        file = here(OUTPUT,"CL_MesPred_plot.png"),
+#        dpi = 600,
+#        width = 16,
+#        height = 11,
+#        units = "cm")
 
 
 ## Against plasma measured ----
@@ -1416,7 +1686,7 @@ ObsVsPred_Plasma_plot <- ggplot() +
                   ymin = q025/Dose,
                   ymax = q975/Dose,
                   fill = Category_OECD),
-              alpha = 0.2) +
+              alpha = 0.4) +
   geom_ribbon(data = C_plasma_predicted_df,
               aes(x = Time,
                   ymin = q25/Dose,
@@ -1438,18 +1708,18 @@ ObsVsPred_Plasma_plot <- ggplot() +
                       nrow = 2) +
   theme_quick
 ObsVsPred_Plasma_plot
+# 
+# ObsVsPred_Plasma_plot <- ObsVsPred_Plasma_plot + Patchwork_theme +
+#   theme(legend.position = "bottom")
+# 
+# ggsave(plot = ObsVsPred_Plasma_plot,
+#        file = here(OUTPUT, "CP_plot_UA_FreeY.png"),
+#        dpi = 600,
+#        width = 24,
+#        height = 8,
+#        units = "cm")
 
-ObsVsPred_Plasma_plot <- ObsVsPred_Plasma_plot + Patchwork_theme +
-  theme(legend.position = "bottom")
-
-ggsave(plot = ObsVsPred_Plasma_plot,
-       file = here(OUTPUT, "CP_plot_UA_FreeY.png"),
-       dpi = 600,
-       width = 24,
-       height = 8,
-       units = "cm")
-
-### Ratios ----
+## Ratios ----
 
 Measured_ratios <- Measured_df |>
   filter(Parameter %in% c("KPR", "LPR")) |>
@@ -1574,6 +1844,56 @@ ggsave(plot = ObsVsPred_Ratios_plot,
        units = "cm")
 
 
+
+## Final plot GoF ----
+
+GoF_one <- ObsVsPred_Plasma_plot + 
+  labs(title = "A.",
+       x = "Time (years)",
+       y = "Plasma concentration/dose (μg/L)") +
+  guides(fill = FALSE) + guides(colour = FALSE) + 
+  Patchwork_theme + 
+  theme(legend.position = "bottom")
+
+GoF_two <- Fa_MesPred_plot + 
+  labs(title = "B." ,
+       x = "",
+       y = "Fraction absorbed") +
+  guides(colour = FALSE) + guides(linetype = FALSE) + 
+  Patchwork_theme + 
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+GoF_three <- CL_MesPred_plot + 
+  labs(title = "C." ,
+       x = "",
+       y = "Clearance (L/day) (log10 scale)") +
+  guides(fill = FALSE) + guides(colour = FALSE) + 
+  Patchwork_theme + 
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+GoF_four <- HL_MesPred_plot + 
+  labs(title = "D.",
+       x = "",
+       y = "Half-life (years) (log10 scale)") +
+  Patchwork_theme + 
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+GoF_plot <- GoF_one / (GoF_two + GoF_three + GoF_four) +
+  plot_layout(heights = c(0.7, 1))  &
+  theme(plot.margin = margin(0.1, 0.1, b = 0, 0.1, "cm"),
+        legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+        legend.box.margin = margin(t = -0.5, 0, b = 0.1, 0, "cm"), 
+        legend.position = "bottom")
+
+ggsave(plot = GoF_plot,
+       file = here(OUTPUT,"GoF_plot_log.png"),
+       dpi = 600,
+       width = 24,
+       height = 18,
+       units = "cm")
 
 
 

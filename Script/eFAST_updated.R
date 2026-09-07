@@ -732,16 +732,43 @@ Parm_order <- ordered_lowry |>
   pull()
 
 
-# Parm_list <- Parm_order$Parameter
+Parm_order3 <- c(
+  "Papp",
+  "Clint OAT4",
+  "SF NTCP",
+  "SF OAT1",
+  "Serum-albumin",
+  "GFR",
+  "D Globulin",
+  "D Structural-protein",
+  "SF OATP1B1",
+  "SF BSEP",
+  "SF OATP2B1_I",
+  "SF OAT3",
+  "SF OAT4",
+  "D Membrane-lipid",
+  "D Albumin",
+  "BW"
+)
 
 
 select_for_plot <- ordered_lowry |>
   filter(Output != "Global") |> 
-  # select(PFAS, Main.Effect, Parameter, Category_OECD, MW) |>
-  mutate(PFAS = factor(PFAS,rev(PFAS_list)),
-         Parameter = factor(Parameter, Parm_order)) |> #Parm_order))
+  mutate(PFAS = factor(PFAS,rev(PFAS_list))) |> 
   mutate(Output = ifelse(Output == "AUC", "AUC", "Half-life")) |> 
-  mutate(Output = factor(Output, levels = c("Half-life", "AUC")))
+  mutate(Output = factor(Output, levels = c("Half-life", "AUC"))) |> 
+  mutate(Parameter = str_replace_all(Parameter,
+                                     c("logD_" = "D ",
+                                       "Water" = "",
+                                       "SF_" = "SF ",
+                                       "MembraneLipid" = "Membrane-lipid",
+                                       "StructuralProtein" = "Structural-protein",
+                                       "Clear_OAT4c" = "Clint OAT4",
+                                       "Calb_P" = "Serum-albumin",
+                                       "SF_OATP2B1_I" = "SF OATP2B1 Intestine",
+                                       "Papp_SI" = "Papp"
+                                       ))) |> 
+  mutate(Parameter = factor(Parameter, Parm_order3))
 
 eFAST_plot <-
   ggballoonplot(select_for_plot,
@@ -767,7 +794,7 @@ eFAST_plot <- eFAST_plot + Patchwork_theme +
   )
 
 ggsave(
-  file = here(OUTPUT,"allPFAS_eFAST_plot2.png"),
+  file = here(OUTPUT,"allPFAS_eFAST_plot4.png"),
   plot = eFAST_plot,
   dpi = 600,
   width = 24,
