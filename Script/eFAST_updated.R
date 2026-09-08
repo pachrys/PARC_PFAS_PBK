@@ -108,13 +108,13 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "eFAST_31Aug") 
+OUTPUT <- here("Output", "eFAST_08Sept") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
 
 PFAS_list <- c(
-  # "PFTrDA",
+  "PFTrDA",
   "PFDoDA",
   "PFUnDA",
   "PFDA",
@@ -150,7 +150,7 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 
 ## All PBK parameters
 SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
-SA_TK_params <- read_xlsx(here("Input", "TK_Parameters.xlsx")) |>
+SA_TK_params <- read_xlsx(here("Input", "TK_Parameters_last.xlsx")) |>
   filter(Predicted == "yes") 
 
 # load functions
@@ -256,43 +256,69 @@ for (i in 1:nPFAS) {
     mutate(Value = ifelse(PBK_mechanism == "Distribution", exp(Value),
                           ifelse(PBK_mechanism == "Absorption", exp(Value),
                                  Value)),
-    binf = min,
-    bsup = max
+           binf = Value - (0.1*Value),
+           bsup = Value + (0.1*Value)
     ) |>
     select(Parameter, Value, binf, bsup)
 
   Model_params <- rbind(Physio_params, PhysChemTK_params)
-
+  
   eFAST_parms <- c(
-    "logD_AlbuminWater", # mean mu and mean sd above 1
-    "SF_OAT4", # mean mu and mean sd above 1
-    "logD_MembraneLipidWater", # mean mu and mean sd above 1
     "BW", # mean mu and mean sd above 1
-    "SF_OATP2B1_I", # mean mu and mean sd above 1
-    "Calb_P", # mean mu and mean sd above 1
-    "SF_BSEP", # mean mu and mean sd above 1
-    "SF_OATP1B1", # mean mu and mean sd above 1
     "GFR", # mean mu and mean sd above 1
-    "logD_GlobulinWater", # mean mu and mean sd above 1
+    "Calb_P", # mean mu and mean sd above 1
+    "logD_AlbuminWater", # mean mu and mean sd above 1
+    "VAc", # mean mu and mean sd above 1
+    "Clear_OAT4c", # mean mu and mean sd above 1
+    "SF_OAT4", # mean mu and mean sd above 1
+    "Qmenses", # mean mu and mean sd above 1
+    "logD_MembraneLipidWater", # mean mu and mean sd above 1
+    "VPTc", # mean mu and mean sd above 1
+    "MAc", # mean mu and mean sd above 1
+    "QTc", # mean mu and mean sd above 1
+    "VL_icc", # mean mu and mean sd above 1
+    
+    "Clear_OATP2B1c", # mean sd above 1
+    "tco", # mean sd above 1
+    "SF_OATP2B1_I", # mean sd above 1
+    
+    "VKc", # within the 10 most highly ranked for some PFAS
+    "Clear_OATP1B1c", # within the 10 most highly ranked for some PFAS
+    "SF_OATP1B1" # within the 10 most highly ranked for some PFAS
+  )
+  
+  
 
-    "Papp_SI", # mean sd above 1
-    "SF_NTCP", # mean sd above 1
-
-    "logD_StructuralProteinWater", # within the 4 most highly ranked for PFTrDA, 8th PFDoDA, PFUnDA
-    "SF_OAT3", # within the 3 most highly ranked for PFBA, PFPeA; 10 most for PFHxA, HPFO-DA
-
-    "SF_OAT1",
-    "Clear_OAT4c"
-    )
+  # eFAST_parms <- c(
+  #   "logD_AlbuminWater", # mean mu and mean sd above 1
+  #   "SF_OAT4", # mean mu and mean sd above 1
+  #   "logD_MembraneLipidWater", # mean mu and mean sd above 1
+  #   "BW", # mean mu and mean sd above 1
+  #   "SF_OATP2B1_I", # mean mu and mean sd above 1
+  #   "Calb_P", # mean mu and mean sd above 1
+  #   "SF_BSEP", # mean mu and mean sd above 1
+  #   "SF_OATP1B1", # mean mu and mean sd above 1
+  #   "GFR", # mean mu and mean sd above 1
+  #   "logD_GlobulinWater", # mean mu and mean sd above 1
+  # 
+  #   "Papp_SI", # mean sd above 1
+  #   "SF_NTCP", # mean sd above 1
+  # 
+  #   "logD_StructuralProteinWater", # within the 4 most highly ranked for PFTrDA, 8th PFDoDA, PFUnDA
+  #   "SF_OAT3", # within the 3 most highly ranked for PFBA, PFPeA; 10 most for PFHxA, HPFO-DA
+  # 
+  #   "SF_OAT1",
+  #   "Clear_OAT4c"
+  #   )
 
   params_qlnorm <- c(
-    "logD_AlbuminWater",
-    "logD_MembraneLipidWater",
-    "logD_GlobulinWater",
-    "logD_StructuralProteinWater",
-    "Clear_OAT4c",
-    "Papp_SI"
+    "logD_AlbuminWater", # mean mu and mean sd above 1
+    "Clear_OAT4c", # mean mu and mean sd above 1
+    "logD_MembraneLipidWater", # mean mu and mean sd above 1
+    "Clear_OATP2B1c", # mean sd above 1
+    "Clear_OATP1B1c" # within the 10 most highly ranked for some PFAS
   )
+  
 
   eFAST_TK_params <- SA_TK_params |>
     filter(PFAS == PFAS_i,
@@ -303,8 +329,8 @@ for (i in 1:nPFAS) {
               Value = Value,
               meanlog = ifelse(Parameter %in% params_qlnorm, Value, NA),
               sdlog = ifelse(Parameter %in% params_qlnorm, RSE, NA),
-              min = ifelse(Parameter %in% params_qlnorm, NA, 1),
-              max = ifelse(Parameter %in% params_qlnorm, NA, Value),
+              min = ifelse(Parameter %in% params_qlnorm, NA, Value - RSE),
+              max = ifelse(Parameter %in% params_qlnorm, NA, Value + RSE),
               Distribution = ifelse(Distribution == "lognormal", "qlnorm", "qunif"))
 
   eFAST_phys_params <- Physio_params |>

@@ -106,7 +106,7 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "31stAugust_Run_Morris") 
+OUTPUT <- here("Output", "07Sept_Run_Morris") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -148,42 +148,9 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 
 ## All PBK parameters
 SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
-# 
-# parm.phys <- c(
-#   BW = 64.41978,
-#   QC = 5486.301,
-#   Hct = 0.3645031,
-#   VIc = 0.016,
-#   VILc = 0.03848451,
-#   SA_SIc = 1099.557,
-#   VLc = 0.02458126,
-#   VL_icc = 0.835,
-#   VL_ecc = 0.161,
-#   VKc = 0.004630086,
-#   VPTc = 0.398,
-#   VPTTc = 0.5470631,
-#   VPTLc = 0.403,
-#   VRKLc = 0.283,
-#   VAc = 0.3426787,
-#   MAc = 1.487552,
-#   VPc = 0.065,
-#   QIc = 0.165,
-#   QLc = 0.06857434,
-#   QKc = 0.1761446,
-#   QAc = 0.09413654,
-#   QUrc = 0.022,
-#   GFR = 193.2765, # 144 - 288 L/day (=0.2*0.1761446*5486.301)
-#   QTc = 0.36,
-#   tco = 3.36,
-#   Qmenses = 0.0008561644,
-#   Calb_P = 40 # 35-50 g/L plasma
-#   )
-
-
-
 
 ## MC parameters
-SA_TK_params <- read_xlsx(here("Input", "TK_Parameters.xlsx")) |>
+SA_TK_params <- read_xlsx(here("Input", "TK_Parameters_last.xlsx")) |>
   filter(Predicted == "yes") 
 
 # load functions
@@ -283,8 +250,8 @@ for (i in 1:nPFAS) {
                           ifelse(PBK_mechanism == "Absorption", exp(Value),
                                  Value)
                           ),
-           binf = min,
-           bsup = max
+           binf = Value - (0.1*Value),
+           bsup = Value + (0.1*Value)
            ) |>
     select(Parameter, Value, binf, bsup)
 
@@ -417,38 +384,38 @@ for (i in 1:nPFAS) {
   morris_data <- data |> #Morris_indices$IGlobal |> 
     arrange(desc(IGlobal_mu.star)) %>% 
     mutate(n = seq(from=1, to=50, by=1)) 
-  # write.csv(morris_data, here(OUTPUT,paste0(PFAS_i, "_arranged_Morris_indices.csv")), row.names = FALSE)
+  write.csv(morris_data, here(OUTPUT,paste0(PFAS_i, "_arranged_Morris_indices.csv")), row.names = FALSE)
   
 
-  morris_plot <- morris_data %>% filter(IGlobal_mu.star > 1) %>%
-    ggplot(aes(x = IGlobal_mu.star, y = IGlobal_sigma,
-               label = parm_names)) +
-    geom_jitter(width = .5, alpha = 0.7, size = 1)  +
-    geom_text_repel(aes(label = as.character(parm_names)),
-                    size=15,
-                    max.overlaps = Inf,
-                    # min.segment.length = 0.05,
-                    segment.size = 0.1
-    ) +
-    labs(
-      title = paste0(PFAS_i, " Morris elementary effects sensitivity analysis"),
-      subtitle = expression(paste("Parameters with μ* >= 1")),
-      x = expression(paste("Mean Effect (μ*)")),
-      y = expression(paste("Standard Deviation (σ)"))
-    ) +
-    theme_quick
-  morris_plot
-
-  morris_plot = morris_plot +
-    Patchwork_theme +
-    theme(axis.text.x = element_text(angle = 0))
-
-  ggsave(plot = morris_plot,
-         file = here(OUTPUT, paste0(PFAS_i, "_morris_plot.png")),
-         dpi = 600,
-         width = 12,
-         height = 12,
-         units = "cm")
+  # morris_plot <- morris_data %>% filter(IGlobal_mu.star > 1) %>%
+  #   ggplot(aes(x = IGlobal_mu.star, y = IGlobal_sigma,
+  #              label = parm_names)) +
+  #   geom_jitter(width = .5, alpha = 0.7, size = 1)  +
+  #   geom_text_repel(aes(label = as.character(parm_names)),
+  #                   size=15,
+  #                   max.overlaps = Inf,
+  #                   # min.segment.length = 0.05,
+  #                   segment.size = 0.1
+  #   ) +
+  #   labs(
+  #     title = paste0(PFAS_i, " Morris elementary effects sensitivity analysis"),
+  #     subtitle = expression(paste("Parameters with μ* >= 1")),
+  #     x = expression(paste("Mean Effect (μ*)")),
+  #     y = expression(paste("Standard Deviation (σ)"))
+  #   ) +
+  #   theme_quick
+  # morris_plot
+  # 
+  # morris_plot = morris_plot +
+  #   Patchwork_theme +
+  #   theme(axis.text.x = element_text(angle = 0))
+  # 
+  # ggsave(plot = morris_plot,
+  #        file = here(OUTPUT, paste0(PFAS_i, "_morris_plot.png")),
+  #        dpi = 600,
+  #        width = 12,
+  #        height = 12,
+  #        units = "cm")
 
 }
 
