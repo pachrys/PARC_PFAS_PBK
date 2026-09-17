@@ -108,7 +108,7 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "eFAST_08Sept") 
+OUTPUT <- here("Output", "eFAST_13Sept1000") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -375,7 +375,7 @@ for (i in 1:nPFAS) {
   Experience <- fast99(
     model = NULL,
     factors = eFAST_parms, # These are the parameters that will be varying in the model
-    n = 501,# Integer giving the sample size, i.e. the length of the discretization of the s-space
+    n = 1501,# Integer giving the sample size, i.e. the length of the discretization of the s-space
     q = q,
     q.arg = q.arg
   )
@@ -498,7 +498,7 @@ for (i in 1:nPFAS) {
       Cumulative.total = cumsum(Total.effect),
       ymin = Cumulative.main,
       ymax = pmin(Cumulative.total, 1),
-      n = seq(1,16, by = 1))
+      n = seq(1,19, by = 1))
 
   # lowry_data_Cmax <- data.frame(
   #   Parameter = eFAST_parms,
@@ -518,7 +518,7 @@ for (i in 1:nPFAS) {
   #     Cumulative.total = cumsum(Total.effect),
   #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,16, by = 1))
+  #     n = seq(1,19, by = 1))
 
   lowry_data_AUC <- data.frame(
     Parameter = eFAST_parms,
@@ -538,7 +538,7 @@ for (i in 1:nPFAS) {
       Cumulative.total = cumsum(Total.effect),
       ymin = Cumulative.main,
       ymax = pmin(Cumulative.total, 1),
-      n = seq(1,16, by = 1))
+      n = seq(1,19, by = 1))
 
   # lowry_data_Global2 <- data.frame(
   #   Parameter = eFAST_parms,
@@ -558,7 +558,7 @@ for (i in 1:nPFAS) {
   #     Cumulative.total = cumsum(Total.effect),
   #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,16, by = 1))
+  #     n = seq(1,19, by = 1))
 
   lowry_data_Global <- data.frame(
     Parameter = eFAST_parms,
@@ -577,7 +577,7 @@ for (i in 1:nPFAS) {
       Cumulative.total = cumsum(Total.effect),
       ymin = Cumulative.main,
       ymax = pmin(Cumulative.total, 1),
-      n = seq(1,16, by = 1))
+      n = seq(1,19, by = 1))
 
 
 
@@ -596,7 +596,7 @@ for (i in 1:nPFAS) {
   #     Cumulative.total = cumsum(Total.effect),
   #     ymin = Cumulative.main,
   #     ymax = pmin(Cumulative.total, 1),
-  #     n = seq(1,16, by = 1))
+  #     n = seq(1,19, by = 1))
   # write.csv(ordered_data, here(OUTPUT, paste0(PFAS_i, "_eFAST_ordered_lowry_data.csv")), row.names = FALSE)
   
   # lowry_data <- read_csv(here(OUTPUT, paste0(PFAS_i, "_eFAST_lowry_data.csv")))
@@ -782,19 +782,27 @@ select_for_plot <- ordered_lowry |>
   filter(Output != "Global") |> 
   mutate(PFAS = factor(PFAS,rev(PFAS_list))) |> 
   mutate(Output = ifelse(Output == "AUC", "AUC", "Half-life")) |> 
-  mutate(Output = factor(Output, levels = c("Half-life", "AUC"))) |> 
-  mutate(Parameter = str_replace_all(Parameter,
-                                     c("logD_" = "D ",
-                                       "Water" = "",
-                                       "SF_" = "SF ",
-                                       "MembraneLipid" = "Membrane-lipid",
-                                       "StructuralProtein" = "Structural-protein",
-                                       "Clear_OAT4c" = "Clint OAT4",
-                                       "Calb_P" = "Serum-albumin",
-                                       "SF_OATP2B1_I" = "SF OATP2B1 Intestine",
-                                       "Papp_SI" = "Papp"
-                                       ))) |> 
-  mutate(Parameter = factor(Parameter, Parm_order3))
+  mutate(Output = factor(Output, levels = c("Half-life", "AUC"))) 
+# |> 
+#   mutate(Parameter = str_replace_all(Parameter,
+#                                      c("logD_" = "D ",
+#                                        "Water" = "",
+#                                        "SF_" = "SF ",
+#                                        "VL_icc" = "Liver intracellular fV",
+#                                        "VPTc" = "Proximal tubule fV",
+#                                        "VKc" = "Kidney V",
+#                                        "MAc" = "Adipose Mass",
+#                                        "VAc" = "Adipose V",
+#                                        "Qmenses" = "Menstrual flow",
+#                                        "QTc" = "Proximal tubule fluid flow",
+#                                        "MembraneLipid" = "Membrane-lipid",
+#                                        # "StructuralProtein" = "Structural-protein",
+#                                        "Clear_OAT4c" = "Clint OAT4",
+#                                        "Calb_P" = "Serum-albumin",
+#                                        "SF_OATP2B1_I" = "SF OATP2B1 Intestine",
+#                                        "Papp_SI" = "Papp"
+#                                        ))) |> 
+#   mutate(Parameter = factor(Parameter, Parm_order3))
 
 eFAST_plot <-
   ggballoonplot(select_for_plot,
@@ -820,7 +828,7 @@ eFAST_plot <- eFAST_plot + Patchwork_theme +
   )
 
 ggsave(
-  file = here(OUTPUT,"allPFAS_eFAST_plot4.png"),
+  file = here(OUTPUT,"allPFAS_eFAST_plot3.png"),
   plot = eFAST_plot,
   dpi = 600,
   width = 24,
