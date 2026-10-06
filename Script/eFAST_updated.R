@@ -151,7 +151,7 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 ## All PBK parameters
 SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
 SA_TK_params <- read_xlsx(here("Input", "TK_Parameters_last.xlsx")) |>
-  filter(Predicted == "yes") 
+  filter(Predicted == "yes") sppdfljsldfjlsdfjldskjf
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))
