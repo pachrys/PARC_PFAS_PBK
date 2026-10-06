@@ -28,7 +28,8 @@ showtext_auto()
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "GoF_0709") 
+INPUT <- here("Output", "GoF_0709") 
+OUTPUT <- here("Output", "Plots")
 dir.create(OUTPUT, recursive = TRUE)
 n = 1000
 
