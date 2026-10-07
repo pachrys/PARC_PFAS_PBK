@@ -82,6 +82,29 @@ theme_quick <- theme_minimal() +
 nC_MW_df <- read.csv(here("Input", "nC_MW_df.csv")) |>
   mutate(PFAS = str_replace_all(PFAS, "_", "-"))
 
+
+PFAS_list <- c(
+  "PFTrDA",
+  "PFDoDA",
+  "PFUnDA",
+  "PFDA",
+  "PFOS",
+  "PFNA",
+  "PFHpS",
+  "PFOA",
+  "PFHxS",
+  "ADONA",
+  "PFHpA",
+  "PFPeS",
+  "HFPO-DA",
+  "PFHxA",
+  "PFBS",
+  "PFPeA",
+  "PFBA"
+)
+
+
+
 TK_df <- read.csv(here(INPUT, "TK_results_all_PFAS.csv"))
 
 C_df <-
@@ -434,6 +457,304 @@ CL_MesPred_plot <- ggplot() +
          units = "cm") 
   
   
+  # Plot 3: fractions ----
+
+  FelFa_predicted_df <- TK_df |>
+    filter(Parameter %in% c("Fa",
+                            # "FelTotal",
+                            "Ffeces",
+                            "FbilEl",
+                            "Furine")) |> 
+    select(Parameter, median, PFAS) |>
+    pivot_wider(names_from = Parameter, 
+                values_from = median) |> 
+    mutate(Fpreintfeces = Ffeces - FbilEl,
+           cumFpreintfeces = Fpreintfeces + Furine,
+           cumFbile = Fpreintfeces + Furine + FbilEl) |> 
+    select(!c(Fa, Ffeces)) |> 
+    pivot_longer(FbilEl:cumFbile, 
+                 names_to = "Parameter", 
+                 values_to = "Value")
+  
+  FelFa_predicted_df <- full_join(FelFa_predicted_df, nC_MW_df)
+  
+  Clean_FelFa <- FelFa_predicted_df |>
+    filter(Parameter %in% c("FbilEl", "Fpreintfeces", "Furine"))
+  Cum_FelFa <- FelFa_predicted_df |>
+    filter(Parameter %in% c("cumFbile", "cumFpreintfeces", "Furine")) |>
+    mutate(Parameter = str_replace_all(Parameter, "cum", ""),
+           Parameter = str_replace_all(Parameter, "Fbile", "FbilEl"))
+
+  Fe_plot <- ggplot() +
+    geom_bar(data = Clean_FelFa,
+             aes(x = reorder(PFAS, MW), y = Value,
+                 fill = Parameter),
+             stat = "identity",
+             position = "stack",
+             width = 0.5) +
+    scale_fill_viridis(option = "D", direction = 1, discrete = "TRUE", 
+                       end = 0.8, 
+                       labels = c("FbilEl" = "Feces: bile",
+                                  "Fpreintfeces" = "Feces: pre-systemic",
+                                  "Furine" = "Urine")) +
+    labs(x = "",
+         y = "Cumulative fraction excreted") +
+    theme_quick +
+    theme(legend.position = "right")
+  Fe_plot
+
+  # Plot 4: distributions ----
+  
+  INPUT <- here("Output", "0.00019")
+  
+  Cdistr_df <-
+    list.files(path = here(INPUT),
+               pattern = "\\Tissue_Distribution.csv$") |>
+    map_df(~ read_csv(file = here(INPUT, .))) 
+  
+  Cdistr_df <- Cdistr_df |> 
+    filter(time == max(Cdistr_df$time),
+           Tissue != "Plasma_total") |> 
+    mutate(SepTissue = Tissue) |> 
+    separate(SepTissue, into = c("Tissue", "Component")) |> 
+    mutate(Component = str_replace_all(
+      Component,
+      c("ALB" = "albumin",
+        "GLOB" = "globulin",
+        "ML" = "membrane lipids",
+        "SL" = "storage lipids",
+        "SP" = "structural proteins")
+    )) |> 
+    mutate(Component = factor(Component, 
+                              levels = c("albumin",
+                                         "globulin",
+                                         "structural proteins",
+                                         "storage lipids", 
+                                         "membrane lipids",
+                                         "free")))
+
+  Cdistr_df <- full_join(Cdistr_df, nC_MW_df)
   
   
+  ### liver----
   
+  Liver_distri <- filter(Cdistr_df, Tissue == "Liver") |> 
+    ggplot(aes(reorder(PFAS, MW), Concentration, fill = Component)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_viridis(option = "D", discrete = TRUE,
+                       end = 0.9) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(#title = "Distribution in liver",
+      x = "",
+      y = "Mass balance", 
+      fill = "Tissue component") +
+    theme_quick
+  Liver_distri
+  
+  
+  ### kidney ----
+  Kidney_distri <- filter(Cdistr_df, Tissue == "Kidney") |> 
+    ggplot(aes(reorder(PFAS, MW), as.numeric(Concentration), fill = Component)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_viridis(option = "D", discrete = TRUE,
+                       end = 0.9) +
+    # facet_wrap(~factor(PFAS, levels = rev(order))) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(#title = "Distribution in kidney",
+      x = "",
+      y = "Mass balance", 
+      fill = "Tissue component")+
+    theme_quick
+  Kidney_distri
+  
+  
+  ### plasma ----
+  Plasma_distri <- filter(Cdistr_df, Tissue == "Plasma") |> 
+    ggplot(aes(reorder(PFAS, MW), Concentration, fill = Component)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_viridis(option = "D", discrete = TRUE,
+                       end = 0.9) +
+    # facet_wrap(~factor(PFAS, levels = rev(order))) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(#title = "Distribution in plasma",
+      x = "",
+      y = "Mass balance", 
+      fill = "Tissue component")+
+    theme_quick
+  Plasma_distri
+  
+  # All tissues ----
+  
+  Tdistr_df <-
+    list.files(path = here(INPUT),
+               pattern = "\\Tissue_Cs.csv$") |>
+    map_df(~ read_csv(file = here(INPUT, .))) 
+  
+  Tdistr_df <- Tdistr_df |> 
+    mutate(Tissue = str_replace_all(
+      Tissue,
+      c("CA" = "adipose",
+        "CI" = "intestine",
+        "CL" = "liver",
+        "CK" = "kidney",
+        "CR" = "rest",
+        "CP" = "plasma")
+    )) |> 
+    mutate(Tissue = factor(Tissue, 
+                           levels = c("liver",
+                                      "intestine", 
+                                      "kidney", 
+                                      "rest",
+                                      "plasma",
+                                      "adipose"
+                                      )))
+  Tdistr_df <- full_join(Tdistr_df, nC_MW_df)
+  
+  ### Plasma ----
+  
+  # install.packages("geomtextpath")
+  library(geomtextpath)
+  library(ggrepel)
+  data4ss_plot = filter(Tdistr_df,
+                        Tissue == "plasma") 
+  
+  data4ss_plot_label <- data4ss_plot |> 
+    mutate(label = ifelse(time == max(data4ss_plot$time), PFAS, NA),
+           nudge_x = 1)|> 
+    mutate(PFAS = factor(PFAS, levels = rev(PFAS_list)),
+           time = time/365)
+  
+  Plasma_perCat_Cs <- ggplot(data = data4ss_plot_label, 
+                             aes(time, Concentration, 
+                                 colour = PFAS)) + #factor(PFAS, levels = rev(PFAS_list)))) +
+    geom_path(linewidth = 0.1, alpha = 0.8) +
+    geom_text_repel(aes(label = label),
+                    min.segment.length = 0.1,
+                    show.legend = FALSE,
+                    size = unit(9, "mm"),
+                    segment.size = 0.1,
+                    nudge_x = 1.5,
+                    direction = "y",
+                    hjust = 0,
+                    na.rm = TRUE) +
+    scale_colour_viridis(option = "D", discrete = TRUE,
+                         direction = -1,
+                         end = 0.9) +
+    # facet_wrap(~Category_OECD, #factor(PFAS, levels = rev(PFAS_list))
+    #            # scales = "free_y",
+    #            nrow = 1) +
+    labs(x = "Time (years)",
+         y = "Concentration (μmol/L)") +
+    theme_quick +
+    theme(legend.position = "none")
+  Plasma_perCat_Cs
+
+  
+  
+  ### Tissues ----
+  
+  lastTdistr_df <- Tdistr_df |> 
+    filter(time == max(Tdistr_df$time))
+  
+  Tdistr_plot <- lastTdistr_df |> 
+    ggplot(aes(reorder(PFAS, MW), Concentration, fill = Tissue)) + #factor(PFAS, levels = rev(order))
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_viridis(option = "D", discrete = TRUE
+    ) +
+    # facet_wrap(~factor(PFAS, levels = rev(order))) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(#title = "Distribution in tissues",
+         x = "",
+         y = "Mass balance", 
+         fill = "Tissue")+
+    theme_quick
+  Tdistr_plot 
+  
+  ### Print ----
+  
+  #### left A ----
+  
+  LA_l <- Plasma_perCat_Cs + Patchwork_theme +
+    theme(legend.position = "null")
+  LA_r <- Plasma_distri + Patchwork_theme +
+    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = c(0.89, 0.915),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+          )
+
+  LA <- LA_l + LA_r +
+    plot_layout(widths = c(1.3, 0.7))
+  
+  ggsave(plot = LA,
+         file = here("ManuscriptPlots","LA.png"),
+         dpi = 600,
+         width = 18,
+         height = 11,
+         units = "cm") 
+  
+  #### right B ----
+  
+  RB <- Tdistr_plot + Patchwork_theme +
+    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = c(0.962, 0.88),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  ggsave(plot = RB,
+         file = here("ManuscriptPlots","RB.png"),
+         dpi = 600,
+         width = 18,
+         height = 11,
+         units = "cm") 
+  
+  ### right C ----
+  
+  RC <- Liver_distri + Kidney_distri & 
+    Patchwork_theme &
+    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          legend.text = element_text(size = 28),
+          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = c(0.11, 0.9),
+          legend.key.spacing = unit(0.02, "cm"),
+          legend.key.size = unit(0.4, "lines"),
+          legend.spacing.y = unit(0.06, "cm"),
+          legend.spacing.x = unit(0.06, "cm"),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+    
+  ggsave(plot = RC,
+         file = here("ManuscriptPlots","RC.png"),
+         dpi = 600,
+         width = 18,
+         height = 11,
+         units = "cm")   
+    
+  ### left D ----
+  
+  LD <- Fe_plot +  Patchwork_theme +
+    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = c(0.934, 0.92),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  ggsave(plot = LD,
+         file = here("ManuscriptPlots","LD.png"),
+         dpi = 600,
+         width = 18,
+         height = 11,
+         units = "cm") 
+    
+    
+    
+    
+    
+    
+    
+    
+    
