@@ -10,7 +10,7 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   # Cmax, Tmax, Tlast ----
   Cmax <- max(data$CP) # ng/ml
   Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
-  Tlast <- filter(data, CP > 1e-9) |> select(time) |> last() |> pull() # 1e-9 ng/ml is already a very small number
+  Tlast <- filter(data, CP > 1e-5) |> select(time) |> last() |> pull() # 1e-9 ng/ml is already a very small number
   
   # calculate half life ----
   # check that there is enough data points to run linear regression

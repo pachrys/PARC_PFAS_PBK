@@ -28,8 +28,7 @@ showtext_auto()
 
 
 # Set output storage directory
-INPUT <- here("Output", "GoF_0709") 
-OUTPUT <- here("Output", "Plots")
+OUTPUT <- here("Output", "NewManuscript_plots")
 dir.create(OUTPUT, recursive = TRUE)
 
 Patchwork_theme <- theme_minimal() +
@@ -102,16 +101,39 @@ PFAS_list <- c(
   "PFPeA",
   "PFBA"
 )
+nPFAS <- length(PFAS_list)
 
+# Goodness of fit ----
 
+# To capture the Cmax observed in Abraham the model was run with a higher resolution (TIMES <- seq(0, 8, by = 0.001))
+# due to computational limits it was impossible to run with such a high resolution for longer duration, therefore a lower resolution was used to predict the TK for longer chain PFAS (TIMES <- seq(0, 3*365, by = 1))
+# the results of both are merged here
 
-TK_df <- read.csv(here(INPUT, "TK_results_all_PFAS.csv"))
+INPUT_high <- here("Output", "GoF_upTo8days")
+INPUT_low <- here("Output", "GoF_0709")
 
-C_df <-
-  list.files(path = here(INPUT),
+## Concentrations ----
+
+C_df_high <-
+  list.files(path = here(INPUT_high),
              pattern = "\\_TissueC_sumstat.csv$") |>
-  map_df(~ read_csv(file = here(INPUT, .)))
+  map_df(~ read_csv(file = here(INPUT_high, .))) 
+TK_df_high <- read.csv(here(INPUT_high, "TK_results_all_PFAS.csv")) |> mutate(Resolution = "high")
 
+# low resolution
+
+C_df_low <-
+  list.files(path = here(INPUT_low),
+             pattern = "\\_TissueC_sumstat.csv$") |>
+  map_df(~ read_csv(file = here(INPUT_low, .))) |> 
+  filter(Time > 0.02191781)
+TK_df_low <- read.csv(here(INPUT_low, "TK_results_all_PFAS.csv")) |> mutate(Resolution = "low")
+
+
+# Combine dataframes
+
+TK_df <- rbind(TK_df_low) # half-lifes of short-chain PFAS are the same but for large-chain PFAS are underestimated in the high resolution simulation since these were not yet eliminated after 8 days, TK_df_low)
+C_df <- rbind(C_df_high, C_df_low)
 
 Measured_df <- read_excel(here("Input", "Evaluation_data.xlsx")) |>
   rename(PFAS = Acronym) |>
@@ -362,16 +384,16 @@ CL_MesPred_plot <- ggplot() +
   
   C_plasma_measured_df <- Measured_df |>
     filter(Parameter == "C_plasma") |>
-    mutate(Time = as.numeric(Time_days)/365) |>
+    mutate(Time = as.numeric(Time_days)) |>
     select(PFAS, Time, Value)
   C_plasma_measured_df <- full_join(C_plasma_measured_df, nC_MW_df)
   C_plasma_measured_df <- full_join(C_plasma_measured_df, Dose_df) |> 
-    filter_out(PFAS %in% c("PFTrDA", "PFPeS", "PFHpS"))
-  
+    filter_out(PFAS %in% c("PFTrDA", "PFPeS", "PFHpS")) 
   
   C_plasma_predicted_df <- C_df |>
     filter(Tissue == "Plasma",
-           Time < 1.25)
+           Time < 1.25) |> 
+    mutate(Time = Time *365)
   
   C_plasma_predicted_df <- full_join(C_plasma_predicted_df, nC_MW_df)
   C_plasma_predicted_df <- full_join(C_plasma_predicted_df, Dose_df)|> 
@@ -402,7 +424,7 @@ CL_MesPred_plot <- ggplot() +
                colour = "grey50",
                size = .5,
                stroke = .2) +
-    labs(x = "Time (years)",
+    labs(x = "Time (days)",
          y = "Concentration (ng/ml)") +
     facet_wrap(~ factor(PFAS, rev(PFAS_list)),
                nrow = 3,
@@ -418,7 +440,7 @@ CL_MesPred_plot <- ggplot() +
     theme(plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"),
           legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
           legend.box.margin = margin(t = -0.5, 0, b = 0.1, 0, "cm"), 
-          legend.position = "right"#,
+          legend.position = c(0.05,0.95),
           # axis.text.x = element_text(angle = 45, hjust = 1)
     )
   
@@ -431,15 +453,35 @@ CL_MesPred_plot <- ggplot() +
   
   # Print all ---
   
+  GoF_one <- HL_MesPred_plot + 
+    labs(title = "A. Half-life",
+         x = "",
+         y = "Half-life (years) (log10 scale)") +
+    Patchwork_theme +
+    theme(legend.position = "none")
+
+  GoF_two <- CL_MesPred_plot + 
+    labs(title = "B. Clearances" ,
+         x = "",
+         y = "Clearance (L/day) (log10 scale)") +
+    Patchwork_theme +
+    theme(legend.position = "none")
+
   GoF_cl <- GoF_one + GoF_two &
-    Patchwork_theme &
+    # Patchwork_theme &
     theme(axis.text.x = element_text(angle = 45, hjust = 1)
           )
   
   GoF_three <- ObsVsPred_Plasma_plot + 
     labs(title = "C. Plasma concentration over time curves") +
-    Patchwork_theme 
-  
+    Patchwork_theme &
+    theme(plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"),
+          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          legend.box.margin = margin(t = -0.5, 0, b = 0.1, 0, "cm"), 
+          legend.position = c(0.9,0.05),
+          # axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  # GoF_three
   GoF <- GoF_cl / GoF_three 
     # plot_layout(guides = "collect") +
     # plot_annotation(title = "NG-PBK predicted and measured PFAS toxicokinetics align",
@@ -450,7 +492,7 @@ CL_MesPred_plot <- ggplot() +
     #                 ) 
   
   ggsave(plot = GoF,
-         file = here(OUTPUT,"GoF2.png"),
+         file = here(OUTPUT,"GoF.png"),
          dpi = 600,
          width = 18,
          height = 18,
@@ -505,7 +547,7 @@ CL_MesPred_plot <- ggplot() +
 
   # Plot 4: distributions ----
   
-  INPUT <- here("Output", "0.00019")
+  INPUT <- here("Output", "PFAS_distribution")
   
   Cdistr_df <-
     list.files(path = here(INPUT),
@@ -629,11 +671,12 @@ CL_MesPred_plot <- ggplot() +
                                  colour = PFAS)) + #factor(PFAS, levels = rev(PFAS_list)))) +
     geom_path(linewidth = 0.1, alpha = 0.8) +
     geom_text_repel(aes(label = label),
-                    min.segment.length = 0.1,
+                    min.segment.length = 0,
                     show.legend = FALSE,
-                    size = unit(9, "mm"),
-                    segment.size = 0.1,
-                    nudge_x = 1.5,
+                    size = unit(6, "mm"),
+                    segment.size = 0.05,
+                    nudge_y = 0.001,
+                    nudge_x = 1.6, #1.5
                     direction = "y",
                     hjust = 0,
                     na.rm = TRUE) +
@@ -672,89 +715,131 @@ CL_MesPred_plot <- ggplot() +
   
   ### Print ----
   
-  #### left A ----
-  
-  LA_l <- Plasma_perCat_Cs + Patchwork_theme +
-    theme(legend.position = "null")
-  LA_r <- Plasma_distri + Patchwork_theme +
-    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
-          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
-          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
-          legend.position = c(0.89, 0.915),
+  Distr_1.1 <- Plasma_perCat_Cs + 
+    labs(title = "A.1. Plasma concentration over time") +
+    Patchwork_theme +
+    theme(legend.position = "none",
+          plot.margin = margin(0.05, 0.05, b = -0.1, 0.05, "cm")
+          )
+    
+  Distr_1.2 <- Plasma_distri +
+    labs(title = "A.2. Intra-plasma distribution") +
+    Patchwork_theme +
+    theme(#plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          #legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          #legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = "none", #c(0.89, 0.915),
           axis.text.x = element_text(angle = 45, hjust = 1)
           )
 
-  LA <- LA_l + LA_r +
+  Distr_1 <- Distr_1.1 + Distr_1.2 +
     plot_layout(widths = c(1.3, 0.7))
   
-  ggsave(plot = LA,
-         file = here("ManuscriptPlots","LA.png"),
-         dpi = 600,
-         width = 18,
-         height = 11,
-         units = "cm") 
+  # ggsave(plot = LA,
+  #        file = here("ManuscriptPlots","LA.png"),
+  #        dpi = 600,
+  #        width = 18,
+  #        height = 11,
+  #        units = "cm") 
   
-  #### right B ----
-  
-  RB <- Tdistr_plot + Patchwork_theme +
-    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
-          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
-          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
-          legend.position = c(0.962, 0.88),
+  Distr_3 <- Tdistr_plot + 
+    labs(title = "C. Tissue distribution") +
+    Patchwork_theme +
+    theme(#lot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          #legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          #legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = "none", #c(0.962, 0.88),
           axis.text.x = element_text(angle = 45, hjust = 1)
     )
   
-  ggsave(plot = RB,
-         file = here("ManuscriptPlots","RB.png"),
-         dpi = 600,
-         width = 18,
-         height = 11,
-         units = "cm") 
+  # ggsave(plot = RB,
+  #        file = here("ManuscriptPlots","RB.png"),
+  #        dpi = 600,
+  #        width = 18,
+  #        height = 11,
+  #        units = "cm") 
   
-  ### right C ----
-  
-  RC <- Liver_distri + Kidney_distri & 
-    Patchwork_theme &
-    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
-          legend.text = element_text(size = 28),
-          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
-          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
-          legend.position = c(0.11, 0.9),
-          legend.key.spacing = unit(0.02, "cm"),
-          legend.key.size = unit(0.4, "lines"),
-          legend.spacing.y = unit(0.06, "cm"),
-          legend.spacing.x = unit(0.06, "cm"),
+  Distr_4.1 <- Liver_distri + 
+    labs(title = "D.1. Intra-liver distribution") +
+    Patchwork_theme +
+    theme(plot.margin = margin(0.05, 0.05, 0.05, l = 0.1, "cm"),
+          # legend.text = element_text(size = 28),
+          # legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          # legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = "none", #c(0.11, 0.9),
+          # legend.key.spacing = unit(0.02, "cm"),
+          # legend.key.size = unit(0.4, "lines"),
+          # legend.spacing.y = unit(0.06, "cm"),
+          # legend.spacing.x = unit(0.06, "cm"),
           axis.text.x = element_text(angle = 45, hjust = 1)
     )
+  
+  
+  Distr_4.2 <- Kidney_distri + 
+    labs(title = "D.2. Intra-kidney distribution") +
+    Patchwork_theme +
+    theme(#plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
+          # legend.text = element_text(size = 28),
+          # legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          # legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = "none", #c(0.11, 0.9),
+          # legend.key.spacing = unit(0.02, "cm"),
+          # legend.key.size = unit(0.4, "lines"),
+          # legend.spacing.y = unit(0.06, "cm"),
+          # legend.spacing.x = unit(0.06, "cm"),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  
+  Distr_4 <- Distr_4.1 + Distr_4.2 
+  
+  # ggsave(plot = RC,
+  #        file = here("ManuscriptPlots","RC.png"),
+  #        dpi = 600,
+  #        width = 18,
+  #        height = 11,
+  #        units = "cm")   
     
-  ggsave(plot = RC,
-         file = here("ManuscriptPlots","RC.png"),
+  Distr_2 <- Fe_plot +  
+    labs(title = "B. Elimination") +
+    Patchwork_theme +
+    theme(plot.margin = margin(0.05, 0.05, 0.05, l = 0.1, "cm"),
+          # legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
+          # legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
+          legend.position = "none", # c(0.934, 0.92),
+          axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  # ggsave(plot = LD,
+  #        file = here("ManuscriptPlots","LD.png"),
+  #        dpi = 600,
+  #        width = 18,
+  #        height = 11,
+  #        units = "cm") 
+  
+  Top <- Distr_1.1 + Distr_1.2 + plot_spacer() +  Distr_2 +
+    plot_layout(widths = c(1.3, 0.85, 0.05, 0.85),
+                nrow = 1)
+    
+    # Distr_1 + Distr_2 +
+    # plot_layout(nrow = 1, 
+    #             widths = c(1.2, 0.8))
+  
+  Bottom <- Distr_3 + plot_spacer() + Distr_4 +
+    plot_layout(nrow = 1, 
+                widths = c(0.7, 0.05, 1.25))
+  
+  Distribution_plot <- Top / Bottom
+    
+    
+  ggsave(plot = Distribution_plot,
+         file = here(OUTPUT,"Distribution.png"),
          dpi = 600,
          width = 18,
-         height = 11,
+         height = 14,
          units = "cm")   
     
-  ### left D ----
+    
+    
+    
   
-  LD <- Fe_plot +  Patchwork_theme +
-    theme(plot.margin = margin(0.05, 0.05, b = 0, 0.05, "cm"),
-          legend.margin = margin(0.05, 0.05, 0.05, 0.05, "cm"),
-          legend.box.margin = margin(t = -0.5, r = -0.5, b = 0.1, l = -0.5, "cm"),
-          legend.position = c(0.934, 0.92),
-          axis.text.x = element_text(angle = 45, hjust = 1)
-    )
-  ggsave(plot = LD,
-         file = here("ManuscriptPlots","LD.png"),
-         dpi = 600,
-         width = 18,
-         height = 11,
-         units = "cm") 
-    
-    
-    
-    
-    
-    
-    
-    
-    
+  
