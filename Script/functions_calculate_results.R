@@ -10,26 +10,10 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   # Cmax, Tmax, Tlast ----
   Cmax <- max(data$CP) # ng/ml
   Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
-  Tlast <- filter(data, CP > 1e-5) |> select(time) |> last() |> pull() # 1e-9 ng/ml is already a very small number
+  Tlast <- filter(data, CP > 1e-5) |> select(time) |> last() |> pull() # 1e-5 ng/ml is already a very small number
   
   # calculate half life ----
-  # check that there is enough data points to run linear regression
-  # if (is_empty(Tlast)){
-  #   
-  #   print("Tlast empty")
-  #   elimination_phase <- NA
-  #   kel <- NA
-  #   half_life <- NA
-  #   
-  # } else if(Tlast <= Tmax){
-  #   
-  #   print("not enough data-points to calculate half life")
-  #   elimination_phase <- NA
-  #   kel <- NA
-  #   half_life <- NA
-  #   
-  # } else {
-    
+
     # elimination phase, i.e. after the Tmax
     
     elimination_phase <- data |>
@@ -44,11 +28,6 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
     
     # calculate the half-life
     half_life <- (log(2) / kel) / 365 # unit correction to years
-    
-    
-  # }
-  
- 
   
   # fractions absorbed and eliminated ----
 
@@ -147,23 +126,9 @@ calc_TK_results <- function(PBK_OUTPUT, OD) {
   )
 }
 
-# quick function to find errors...
-check_error <- function(PBK_OUTPUT, OD) {
-  
-  data <- PBK_OUTPUT |> drop_na()
-  Tmax <- filter(data, CP == max(data$CP)) %>% pull(time) # days
-  Tlast <- filter(data, CP > 0) |> select(time) |> last() |> pull()
-  Iteration <- unique(data$Iteration)
-  
-  return(c(Tmax = Tmax, 
-           Tlast = Tlast, 
-           Iteration = Iteration))}
-
-
-
 calc_TK_summary_results <- function(raw_TK_results){
   
-  Results_all <- raw_TK_results |>  #do.call(rbind, raw_TK_results) |>
+  Results_all <- raw_TK_results |>  
     na.omit() |> t() |> 
     as.data.frame() |> 
     summarise(across(where(is.numeric), .fns =
@@ -205,7 +170,6 @@ calc_C_summary <- function(C_all_df, Tissue_j){
     separate(Variable,
              into = c("ID", "Variable")) |>
     mutate(ID = as.numeric(str_replace(ID, "V", ""))) |>
-    # mutate(Time = (Time*10)/365) |>  #unit correction, to years
     pivot_wider(names_from = Variable, values_from = Value)
   
   return(C_summary)

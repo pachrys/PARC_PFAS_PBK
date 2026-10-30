@@ -945,9 +945,114 @@ CL_MesPred_plot <- ggplot() +
   
   
   
+  # Sensitivity Analysis plot ----
   
   
-    
-    
+  OUTPUT <- here("Output", "eFAST") 
+  ordered_lowry <- read.csv(here(OUTPUT, "allPFAS_lowry.csv"))
   
+  wide_ordered_lowry <- ordered_lowry |>
+    filter(Output != "Global") |>
+    select(PFAS, Parameter, n, Output) |>
+    mutate(Parameter = str_replace_all(Parameter,"_", "--")) |>
+    pivot_wider(names_from = Parameter, values_from = n) |>
+    group_by(Output) |> 
+    summarise(across(where(is.numeric), .fns =
+                       list(mean = ~mean(.,na.rm = TRUE)
+                       ))) |>
+    pivot_longer(!Output, names_to = "Variable",
+                 values_to = "Value") |>
+    separate(Variable,
+             into = c("Parameter", "Variable"),
+             sep = "_") |>
+    mutate(Parameter = str_replace_all(Parameter, "--", "_")) |>
+    select(!Variable) |> 
+    arrange(-Value) |>
+    select(Parameter) |> distinct() |> pull()
+  
+  Parm_order <- c(
+    "Adipose_V",
+    "Adipose_Mass",
+    "Kidney_V",
+    "Proximal tubule fluid_flowR",
+    "Proximal tubule_fV",      
+    "Liver intracellular_fV",
+    "Intestinal fluid_flowR",
+    "SF_OAT4",                    
+    "SF_OATP1B1",                
+    "SF_OATP2B1_I", 
+    "Clint_OATP1B1c", 
+    "Clint_OATP2B1c",
+    "D_Membrane lipid", 
+    "Clint_OAT4c", 
+    "D_Albumin", 
+    "Glomerular filtrationR",
+    "Menstrual fluid_flowR",
+    "Serum albumin_C",
+    "BW"
+  )
+  
+  select_for_plot <- ordered_lowry |>
+    filter(Output != "Global") |> 
+    mutate(PFAS = factor(PFAS,rev(PFAS_list))) |> 
+    mutate(Output = ifelse(Output == "AUC", "AUC", "Half-life")) |> 
+    mutate(Output = factor(Output, levels = c("Half-life", "AUC")))  |>
+    mutate(Parameter = str_replace_all(Parameter,
+                                       c("logD_" = "D_",
+                                         "Water" = "",
+                                         "VL_icc" = "Liver intracellular_fV",
+                                         "VPTc" = "Proximal tubule_fV",
+                                         "VKc" = "Kidney_V",
+                                         "MAc" = "Adipose_Mass",
+                                         "VAc" = "Adipose_V",
+                                         "Qmenses" = "Menstrual fluid_flowR",
+                                         "QTc" = "Proximal tubule fluid_flowR",
+                                         "MembraneLipid" = "Membrane lipid",
+                                         "Clear_" = "Clint_",
+                                         "Calb_P" = "Serum albumin_C",
+                                         "tco" = "Intestinal fluid_flowR",
+                                         "GFR" = "Glomerular filtrationR"
+                                       ))) |>
+    mutate(Parameter = factor(Parameter, Parm_order))
+  
+  library(ggpubr)
+  library(stringr)
+  
+  s <- select_for_plot |> 
+    filter(Main.Effect >= 0.01) |> 
+    mutate(Main.Effect = as.numeric(Main.Effect))
+  
+  eFAST_plot <-
+    ggballoonplot(s,
+                  x = "PFAS", y = "Parameter",
+                  size =  "Main.Effect", 
+                  fill = "Category_OECD",
+                  color = "Category_OECD",
+                  rotate.x.text = TRUE,
+                  facet.by = "Output") +
+    scale_fill_viridis(option = "D", discrete = TRUE, end = 0.7) +
+    scale_color_viridis(option = "D", discrete = TRUE, end = 0.7, guide = NULL) +
+    scale_size_binned(n.breaks = 5,
+                      range = c(0.01, 5)
+    ) +
+    theme_quick +
+    labs(x = "", y = "",
+         fill = "Category",
+         size = "Main effect")
+  eFAST_plot
+  
+  eFAST_plot <- eFAST_plot + Patchwork_theme +
+    theme(legend.position='right',
+          legend.title = element_text(size = 40),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          strip.text = element_text(hjust = 0, size = 50, face = "bold", margin = margin(0,0,0,0))
+    )
+  
+  ggsave(
+    file = here("ManuscriptPlots","SA.png"),
+    plot = eFAST_plot,
+    dpi = 600,
+    width = 18,
+    height = 9,
+    units = "cm")
   

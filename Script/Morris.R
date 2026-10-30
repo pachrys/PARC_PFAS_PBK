@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Script for running the MCMC using eFAST
+# Script for running the Morris test
 # Chrysanthi Pachoulide, August 2026
 # --------------------------------------------------------------------------- #
 
@@ -13,11 +13,7 @@ library(deSolve)
 library(tidyverse)
 library(glue)
 library(readxl)
-library(PKNCA)
-library(parallel)
-library(pracma)
 library(viridis)
-library(lhs)
 library(data.table)
 library(sensitivity)
 library(ggrepel)
@@ -106,7 +102,7 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "07Sept_Run_Morris") 
+OUTPUT <- here("Output", "Morris") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -150,7 +146,7 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
 
 ## MC parameters
-SA_TK_params <- read_xlsx(here("Input", "TK_Parameters_last.xlsx")) |>
+SA_TK_params <- read_xlsx(here("Input", "QSPR_Parameters_4MCandGSA.xlsx")) |>
   filter(Predicted == "yes") 
 
 # load functions
@@ -322,10 +318,6 @@ for (i in 1:nPFAS) {
 
   y <- results
   savey = y
-  # savey <- mapply(cbind, y,
-  #                 "Iteration" = seq(1,length(y), by = 1),
-  #                 "PFAS" = PFAS_i,
-  #                 SIMPLIFY = FALSE)
   save(savey, file = here(OUTPUT, paste0(PFAS_i,"_Morris_y.RData")))
 
   # load(here(OUTPUT, paste0(PFAS_i,"_Morris_y.RData")))
@@ -386,37 +378,6 @@ for (i in 1:nPFAS) {
     mutate(n = seq(from=1, to=50, by=1)) 
   write.csv(morris_data, here(OUTPUT,paste0(PFAS_i, "_arranged_Morris_indices.csv")), row.names = FALSE)
   
-
-  # morris_plot <- morris_data %>% filter(IGlobal_mu.star > 1) %>%
-  #   ggplot(aes(x = IGlobal_mu.star, y = IGlobal_sigma,
-  #              label = parm_names)) +
-  #   geom_jitter(width = .5, alpha = 0.7, size = 1)  +
-  #   geom_text_repel(aes(label = as.character(parm_names)),
-  #                   size=15,
-  #                   max.overlaps = Inf,
-  #                   # min.segment.length = 0.05,
-  #                   segment.size = 0.1
-  #   ) +
-  #   labs(
-  #     title = paste0(PFAS_i, " Morris elementary effects sensitivity analysis"),
-  #     subtitle = expression(paste("Parameters with μ* >= 1")),
-  #     x = expression(paste("Mean Effect (μ*)")),
-  #     y = expression(paste("Standard Deviation (σ)"))
-  #   ) +
-  #   theme_quick
-  # morris_plot
-  # 
-  # morris_plot = morris_plot +
-  #   Patchwork_theme +
-  #   theme(axis.text.x = element_text(angle = 0))
-  # 
-  # ggsave(plot = morris_plot,
-  #        file = here(OUTPUT, paste0(PFAS_i, "_morris_plot.png")),
-  #        dpi = 600,
-  #        width = 12,
-  #        height = 12,
-  #        units = "cm")
-
 }
 
 

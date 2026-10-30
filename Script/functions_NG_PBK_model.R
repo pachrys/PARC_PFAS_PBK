@@ -1,6 +1,6 @@
 # File containing model functions
 
-# function to calculate the final parameters for Morris test (combines physchem and physiological parameters)
+# function to calculate TK parameters for Morris and eFAST test (combines physchem and physiological parameters)
 GSA_Calc_final_params <- function(parms){
   with(as.list(c(parms)), {
     # Physiological ----
@@ -285,7 +285,7 @@ GSA_Calc_final_params <- function(parms){
   })
 }
 
-# function to calculate the final parameters
+# function to calculate TK parameters for Monte Carlo
 Calc_final_params <- function(parm.chem, parm.phys){
   with(as.list(c(parm.chem, parm.phys)), {
     # Physiological ----
@@ -570,7 +570,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
   })
 }
 
-# function to run the PBK model during optimisation
+# function to run the PBK model (used in Run_NG_PBK_model_with_QSPR_params_and_MC.R)
 PBK.model <- function(t, state, pars){
   with(as.list(c(state, pars)), {
     
@@ -659,22 +659,6 @@ PBK.model <- function(t, state, pars){
     
     # End
     
-    # if (AIL < 1e-08) dAIL <- max(dAIL, 0)
-    # if (AI < 1e-08) dAI <- max(dAI, 0)
-    # if (AFe < 1e-08) dAFe <- max(dAFe, 0)
-    # if (AL_ec < 1e-08) dAL_ec <- max(dAL_ec, 0)
-    # if (AL_ic < 1e-08) dAL_ic <- max(dAL_ic, 0)
-    # if (APTT < 1e-08) dAPTT <- max(dAPTT, 0)
-    # if (APTL < 1e-08) dAPTL <- max(dAPTL, 0)
-    # if (ARKT < 1e-08) dARKT <- max(dARKT, 0)
-    # if (ARKL < 1e-08) dARKL <- max(dARKL, 0)
-    # if (AUr < 1e-08) dAUr <- max(dAUr, 0)
-    # if (AA < 1e-08) dAA <- max(dAA, 0)
-    # if (AR < 1e-08) dAR <- max(dAR, 0)
-    # if (AP < 1e-08) dAP <- max(dAP, 0)
-    # if (AMp < 1e-08) dAMp <- max(dAMp, 0)
-    # if (InMB < 1e-08) dInMB <- max(dInMB, 0)
-    
     list(c(dAIL,
            dAI, 
            dAFe,
@@ -703,7 +687,7 @@ PBK.model <- function(t, state, pars){
   })
 }
 
-# function to get final TK params to be used in the final PBK model version
+# function to get final TK params to be used in the final PBK model version ????????????
 Calc_final_params.f <- function(parm.chem, parm.phys){
   with(as.list(c(parm.chem, parm.phys)), {
     # Toxicokinetic ----
@@ -855,7 +839,7 @@ Calc_final_params.f <- function(parm.chem, parm.phys){
   })
 }
 
-# function of the final PBK model
+# function of the final PBK model (used in Run_NG_PBK_model_estimate_PFAS_TK.R)
 PBK.model.f <- function(t, state, pars){
   with(as.list(c(state, pars)), {
     
