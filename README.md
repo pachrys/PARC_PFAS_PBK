@@ -4,13 +4,13 @@ This repository contains all files needed to run the NG-PBK model for the 17 PFA
 
 ![Table1.](PFAS_modelled.png)
 
-# Git-hub file structure:
+# GitHub file structure:
 
 ## Input folder:
 - Physio_Parameters: physiological parameters for an average adult human
-- QSPR_Parameters_4MCandGSA: QSPR predicted parameters used when running the NG-PBK model over the range of predicted values to understand the uncertainty derived from these parameters, and in the sensitivity analysis
+- QSPR_Parameters_4MCandGSA: QSPR-predicted parameters used when running the NG-PBK model over the range of predicted values to understand the uncertainty derived from these parameters, and in the sensitivity analysis
 - Final_TK_Parameters: toxicokinetic parameters used in the NG-PBK model
-- Evaluation_data: data collected from human biomonitoring and volunteer studies, used as benchmark to the model predictions
+- Evaluation_data: data collected from human biomonitoring and volunteer studies, used as benchmark for model predictions
 - nC_MW_df: table with the number of carbons and molecular weight of PFAS
 - PFAS_ADME_NAM_database: database with all collected ADME data on PFAS derived in in vitro and in silico studies
 - TissueComposition: tissue composition in humans
@@ -18,11 +18,11 @@ This repository contains all files needed to run the NG-PBK model for the 17 PFA
 ## Script folder:
 - QSPRs_4_PBK_model_parameters: where QSPRs are developed
 - functions_NG_PBK_model: where the PBK model functions are found
-- functions_calculate_results: where the functions to calculate half-lifes, elimination clearances, fraction absorbed and internal PFAS concentrations are
+- functions_calculate_results: where the functions to calculate half-lives, elimination clearances, fraction absorbed and internal PFAS concentrations are
 - Run_NG_PBK_model_with_QSPR_params_and_MC: where the uncertainty in NG-PBK model predictions driven by the uncertainty of QSPR parameters is estimated
 - eFAST: where the script for running eFAST can be found
 - Morris: where the script for running the Morris test can be found
-- Run_NG_PBK_model_2estimate_PFAS_TK: where the differences in the NG-PBK model predicted toxicokinetics of PFAS in humans are estimated
+- Run_NG_PBK_model_2estimate_PFAS_TK: used to estimate differences in PFAS toxicokinetics predicted by the NG-PBK model
 - Plots4manuscript: code for producing the plots found in the manuscript
 
 ## Output:
