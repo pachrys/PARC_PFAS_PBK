@@ -440,7 +440,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
     ## clearances ----
     
     # intestine
-    Clear_apparent <- (Papp_SI*SA_SI*1e-3)                     # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
+    Clear_apparent <- Papp_SI*SA_SI*1e-3* 86400            # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
     
     Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
     
