@@ -84,7 +84,7 @@ GSA_Calc_final_params <- function(parms){
     # based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
     fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))       # proximal tubule lumen
     fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup))    # liver extracellular space
-    fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # liver extracellular space
+    fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # proximal tubule extracellular space
     
     
     ## partition coefficients ---- 
@@ -365,8 +365,15 @@ Calc_final_params <- function(parm.chem, parm.phys){
     # fraction unbound in plasma
     fup <- 1/(1 + (D_ALB*(FV_Alb/FV_W)) + (D_Glob*(FV_Glob/FV_W)))
     
-    # calculate fraction unbound in different matrices; 
-    # based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
+    ## calculate fraction unbound in different matrices; 
+    ## based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
+    
+    # Calculate fraction unbound in different matrices.
+    # Based on Poulin and Haddad (2018 https://doi.org/10.1016/j.xphs.2018.03.012), adapted without an explicit ionisation
+    # correction because OAT and OATP transporters can transport the ionised compound.
+    # For PFOA, the fraction ionised is approximately 1 at both plasma and cellular pH;
+    # therefore, the ratio of ionised fractions between these compartments is approximated as 1.
+    
     fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))       # proximal tubule lumen
     fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup))    # liver extracellular space
     fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # liver extracellular space
