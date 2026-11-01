@@ -468,10 +468,15 @@ Calc_final_params <- function(parm.chem, parm.phys){
     Clear_OAT1 <- Clear_OAT1c*SF_OAT1*VPT*fu_PT_ec            # L/d 
     Clear_OAT4 <- Clear_OAT4c*SF_OAT4*VPT*fu_PTL              # L/d 
     
-    # calculate net reabsorption (difference between active elimination and reabsorption)
+    # Calculate net active reabsorption as OAT4-mediated reabsorption minus
+    # OAT1- and OAT3-mediated secretion.
+    # Negative values are truncated to zero; therefore, net active secretion
+    # is not explicitly represented in the current model.
+    
     Clear_reabsorption <- Clear_OAT4 - (Clear_OAT1 + Clear_OAT3)
-    Clear_reabsorption_K <- ifelse(Clear_reabsorption > 0, 
-                                   Clear_reabsorption, 0)
+    #Clear_reabsorption_K <- ifelse(Clear_reabsorption > 0, 
+    #                               Clear_reabsorption, 0)
+    Clear_net_reabsorption_K <- pmax(Clear_net_reabsorption, 0)
     
     # Clearance via menstruation
     Qmenses <- Qmenses                                        # L/d
