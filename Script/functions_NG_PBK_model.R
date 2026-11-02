@@ -699,7 +699,7 @@ PBK.model <- function(t, state, pars){
   })
 }
 
-# function to get final TK params to be used in the final PBK model version ????????????
+# Calculate chemical-specific TK parameters for the final PBK model
 Calc_final_params.f <- function(parm.chem, parm.phys){
   with(as.list(c(parm.chem, parm.phys)), {
     # Toxicokinetic ----
