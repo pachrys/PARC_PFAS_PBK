@@ -528,7 +528,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
       Clear_uptake_L = Clear_uptake_L,
       Clear_excretion_L = Clear_excretion_L,
       GFR_free = GFR_free,
-      Clear_reabsorption_K = Clear_reabsorption_K,
+      Clear_net_reabsorption_K = Clear_reabsorption_K,
       
       # initial input parameters, not used in the model just output for double checking their distribution
       BW = BW, 
@@ -633,10 +633,10 @@ PBK.model <- function(t, state, pars){
       - Clear_excretion_L*CL_ic             # ug/d, Liver intracellular space
     
     dAPTT <- + (QK - GFR_free)*CP - QK*CPTT + 
-      + Clear_reabsorption_K*CPTL # ug/d, Proximal tubule tissue 
+      + Clear_net_reabsorption_K*CPTL # ug/d, Proximal tubule tissue 
     
     dAPTL <- + GFR_free*CP - QT*CPTL +
-      - Clear_reabsorption_K*CPTL   # ug/d, Proximal tubule lumen    
+      - Clear_net_reabsorption_K*CPTL   # ug/d, Proximal tubule lumen    
     
     dARKT <- QK*(CPTT - CVRKT)                               # ug/d, Rest of kidney
     
