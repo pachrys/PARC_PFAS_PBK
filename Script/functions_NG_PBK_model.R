@@ -804,7 +804,7 @@ Calc_final_params.f <- function(parm.chem, parm.phys){
     # intestine
     Papp_SI <- Papp_SI                     # cm/s
     
-    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I#*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
+    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I#*VI_L        # L/d, active uptake, fraction unbound is assumed to be 1 
     
     # liver 
     Clear_OATP1B1 <- Clear_OATP1B1c*SF_OATP1B1   #*VL_ic*fu_L_ec   # L/d
