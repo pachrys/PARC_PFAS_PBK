@@ -451,6 +451,112 @@ CL_MesPred_plot <- ggplot() +
   #        height = 11,
   #        units = "cm")
   
+  
+  ## regression lines ----
+  
+  ObsPlasma <- C_plasma_measured_df |> 
+    mutate(Time = signif(as.numeric(Time),3),
+           q025 = Value, 
+           q975 = Value) |> 
+    rename(Observed = Value)
+  
+  Obstimepoints <- signif(unique(ObsPlasma$Time),3)
+  
+  
+  PredPlasma <- C_plasma_predicted_df |> 
+    mutate(Time = signif(Time, 3)) |> 
+    filter(Time %in% Obstimepoints) |> 
+    select(PFAS, Time, median, q025, q975, Category_OECD, MW, n_C) |> 
+    rename(Predicted = median)
+  
+  Predtimepoints <- signif(unique(PredPlasma$Time),3)
+  
+  ObsPlasma <- ObsPlasma |> 
+    filter(Time %in% Predtimepoints)
+  
+  # MedianPredPlasma <- PredPlasma |> select(!c(q025, q975)) 
+  # MedianObsPlasma <- ObsPlasma |> select(!c(q025, q975))
+  
+  ObsPredPlasma <- left_join(ObsPlasma, PredPlasma, by = c("PFAS", "Time", "Category_OECD", "MW", "n_C")) 
+  
+  s_reg <- NULL
+  s_r.sq <- NULL
+  s_RSE <- NULL
+  s_RMSE <- NULL
+  PFAS_listreg <- unique(ObsPlasma$PFAS)
+  nPFASreg <- length(PFAS_listreg)
+  for (i in 1:nPFASreg) {
+    PFAS_i <- PFAS_listreg[i]
+    
+    Forreg <- filter(ObsPredPlasma, PFAS == PFAS_i) |> 
+      select(Predicted, Observed) 
+    
+    reg <- lm(Predicted ~ Observed, data = Forreg)
+    r.sq <- summary(reg)$r.squared
+    RSE <- summary(reg)$sigma
+    RMSE <- sqrt(mean((Forreg$Observed - Forreg$Predicted)^2))
+    
+    s_reg[i] <- reg
+    s_r.sq[i] <- r.sq
+    s_RSE[i] <- RSE
+    s_RMSE[i] <- RMSE
+  }
+  
+  names(s_r.sq) = names(s_RSE) = names(s_RMSE) = PFAS_listreg
+  
+  RegResults <- tibble(
+    PFAS = PFAS_listreg, 
+    R_squared = s_r.sq,
+    RSE = s_RSE,
+    RMSE = s_RMSE
+  )
+  write.csv(RegResults, here(OUTPUT, "RegResults.csv"))
+  write.csv(ObsPredPlasma, here(OUTPUT, "RawObsPred.csv"))
+  
+  
+  ObsPredPlasma_regr <- ggplot(ObsPredPlasma,
+                               aes(#x = Predicted, y = Observed, 
+                                 x = log10(Observed), y = log10(Predicted),
+                                 colour = Category_OECD)) +
+    # geom_abline(intercept = 0, slope = 1, linetype = "solid", linewidth = 0.5) + #, color = "grey50") +
+    # geom_abline(intercept = 0, slope = 2, linetype = "dashed", linewidth = 0.3) +#, color = "grey50") +
+    # geom_abline(intercept = 0, slope = 1/2, linetype = "dashed", linewidth = 0.3) + #, color = "grey50") +
+    # geom_abline(intercept = 0, slope = 10, linetype = "dotted", linewidth = 0.3) + #, color = "grey50") +
+    # geom_abline(intercept = 0, slope = 1/10, linetype = "dotted", linewidth = 0.3) + #, color = "grey50") +
+    # 
+    geom_abline(intercept = 0, slope = 1, linetype = "solid", linewidth = 0.5) + #, color = "grey50") +
+    geom_abline(intercept = log10(2), slope = 1, linetype = "dashed", linewidth = 0.3) +#, color = "grey50") +
+    geom_abline(intercept = log10(0.5), slope = 1, linetype = "dashed", linewidth = 0.3) + #, color = "grey50") +
+    geom_abline(intercept = log10(10), slope = 1, linetype = "dotted", linewidth = 0.3) + #, color = "grey50") +
+    geom_abline(intercept = log10(1/10), slope = 1, linetype = "dotted", linewidth = 0.3) + #, color = "grey50") +
+    # geom_errorbar(aes(ymin = log10(Cmin), ymax = log10(Cmax)),
+    #               alpha = 0.3)+
+    facet_wrap(~ factor(PFAS, rev(PFAS_list)),
+               nrow = 2) +
+    geom_point(size = 1, alpha = 0.9) +
+    scale_color_viridis(option = "D", discrete = TRUE, end=0.7) +
+    coord_cartesian(xlim = c(-3, 0.5), ylim = c(-3, 0.5)) +
+    # coord_cartesian(xlim = c(0, 0.60), ylim = c(0, 0.60)) +
+    labs(#title = "B. ZEN Blood",
+      x = expression(paste("Observed concentration (log"[10] ~ "(ng/ml))")),
+      y = expression(paste("Predicted concentration (log"[10] ~ "(ng/ml))")),
+      color = "Category OECD"
+    ) +
+    theme_quick 
+  ObsPredPlasma_regr
+  ObsPredPlasma_regr <- ObsPredPlasma_regr + Patchwork_theme +
+    theme(legend.position = "bottom")
+  
+  ggsave(plot = ObsPredPlasma_regr,
+         file = here(OUTPUT, "ObsPredPlasma_regr.png"),
+         dpi = 600,
+         width = 24,
+         height = 8,
+         units = "cm")
+  
+  
+  
+  
   # Print all ---
   
   GoF_one <- HL_MesPred_plot + 
