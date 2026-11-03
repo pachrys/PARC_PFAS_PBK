@@ -1,6 +1,6 @@
 # --------------------------------------------------------------------------- #
-# Script for optimising the most sensitive parameters
-# Chrysanthi Pachoulide, August 2026
+# Script for producing the plots in the manuscript
+# Chrysanthi Pachoulide, October 2026
 # --------------------------------------------------------------------------- #
 
 rm(list=ls()) # to clear out the global environment
@@ -28,7 +28,7 @@ showtext_auto()
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "NewManuscript_plots")
+OUTPUT <- here("Output", "3-11Manuscript_plots")
 dir.create(OUTPUT, recursive = TRUE)
 
 Patchwork_theme <- theme_minimal() +
