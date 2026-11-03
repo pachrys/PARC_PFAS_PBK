@@ -108,7 +108,8 @@ Patchwork_theme <- theme_minimal() +
 
 
 # Set output storage directory
-OUTPUT <- here("Output", "eFAST") 
+#OUTPUT <- here("Output", "eFAST") 
+OUTPUT <- here("Output", "eFAST-check") 
 dir.create(OUTPUT, recursive = TRUE)
 
 # Load data
@@ -151,7 +152,7 @@ Physio.data <- read_csv(here("Input", "TissueComposition.csv")) %>%
 ## All PBK parameters
 SA_Physio_params <- read_xlsx(here("Input", "Physio_Parameters.xlsx")) 
 SA_TK_params <- read_xlsx(here("Input", "QSPR_Parameters_4MCandGSA.xlsx")) |>
-  filter(Predicted == "yes") sppdfljsldfjlsdfjldskjf
+  filter(Predicted == "yes") #sppdfljsldfjlsdfjldskjf
 
 # load functions
 source(here("Script", "functions_NG_PBK_model.R"))

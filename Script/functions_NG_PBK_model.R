@@ -84,7 +84,7 @@ GSA_Calc_final_params <- function(parms){
     # based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
     fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))       # proximal tubule lumen
     fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup))    # liver extracellular space
-    fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # liver extracellular space
+    fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # proximal tubule extracellular space
     
     
     ## partition coefficients ---- 
@@ -148,7 +148,7 @@ GSA_Calc_final_params <- function(parms){
     ## clearances ----
     
     # intestine
-    Clear_apparent <- (Papp_SI*SA_SI*1e-3)                 # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
+    Clear_apparent <- Papp_SI*SA_SI*1e-3 * 86400         # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
     
     Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
     
@@ -365,8 +365,15 @@ Calc_final_params <- function(parm.chem, parm.phys){
     # fraction unbound in plasma
     fup <- 1/(1 + (D_ALB*(FV_Alb/FV_W)) + (D_Glob*(FV_Glob/FV_W)))
     
-    # calculate fraction unbound in different matrices; 
-    # based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
+    ## calculate fraction unbound in different matrices; 
+    ## based on Poulin and Haddad, 2018 https://doi.org/10.1016/j.xphs.2018.03.012; adapted to not account for fraction unionised as OAT and OATP transporters transport the ionised compound, given that the ratio of fraction ionised at plasma to cellular pH is 1, this can be ignored (fraction unionised of PFOA is 0.9999923 at pH 7.4 and 0.9999963 at pH 7)
+    
+    # Calculate fraction unbound in different matrices.
+    # Based on Poulin and Haddad (2018 https://doi.org/10.1016/j.xphs.2018.03.012), adapted without an explicit ionisation
+    # correction because OAT and OATP transporters can transport the ionised compound.
+    # For PFOA, the fraction ionised is approximately 1 at both plasma and cellular pH;
+    # therefore, the ratio of ionised fractions between these compartments is approximated as 1.
+    
     fu_PTL <- PMR_PTL*fup/(1 + ((PMR_PTL-1)*fup))       # proximal tubule lumen
     fu_L_ec <- PMR_L_ec*fup/(1 + ((PMR_L_ec-1)*fup))    # liver extracellular space
     fu_PT_ec <- PMR_PT_ec*fup/(1 + ((PMR_PT_ec-1)*fup)) # liver extracellular space
@@ -433,7 +440,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
     ## clearances ----
     
     # intestine
-    Clear_apparent <- (Papp_SI*SA_SI*1e-3)                     # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
+    Clear_apparent <- Papp_SI*SA_SI*1e-3* 86400            # L/d, passive absorption (1e-3 to convert (cm^3)ml to L)
     
     Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
     
@@ -461,10 +468,15 @@ Calc_final_params <- function(parm.chem, parm.phys){
     Clear_OAT1 <- Clear_OAT1c*SF_OAT1*VPT*fu_PT_ec            # L/d 
     Clear_OAT4 <- Clear_OAT4c*SF_OAT4*VPT*fu_PTL              # L/d 
     
-    # calculate net reabsorption (difference between active elimination and reabsorption)
+    # Calculate net active reabsorption as OAT4-mediated reabsorption minus
+    # OAT1- and OAT3-mediated secretion.
+    # Negative values are truncated to zero; therefore, net active secretion
+    # is not explicitly represented in the current model.
+    
     Clear_reabsorption <- Clear_OAT4 - (Clear_OAT1 + Clear_OAT3)
-    Clear_reabsorption_K <- ifelse(Clear_reabsorption > 0, 
-                                   Clear_reabsorption, 0)
+    #Clear_reabsorption_K <- ifelse(Clear_reabsorption > 0, 
+    #                               Clear_reabsorption, 0)
+    Clear_net_reabsorption_K <- pmax(Clear_net_reabsorption, 0)
     
     # Clearance via menstruation
     Qmenses <- Qmenses                                        # L/d
@@ -516,7 +528,7 @@ Calc_final_params <- function(parm.chem, parm.phys){
       Clear_uptake_L = Clear_uptake_L,
       Clear_excretion_L = Clear_excretion_L,
       GFR_free = GFR_free,
-      Clear_reabsorption_K = Clear_reabsorption_K,
+      Clear_net_reabsorption_K = Clear_reabsorption_K,
       
       # initial input parameters, not used in the model just output for double checking their distribution
       BW = BW, 
@@ -621,10 +633,10 @@ PBK.model <- function(t, state, pars){
       - Clear_excretion_L*CL_ic             # ug/d, Liver intracellular space
     
     dAPTT <- + (QK - GFR_free)*CP - QK*CPTT + 
-      + Clear_reabsorption_K*CPTL # ug/d, Proximal tubule tissue 
+      + Clear_net_reabsorption_K*CPTL # ug/d, Proximal tubule tissue 
     
     dAPTL <- + GFR_free*CP - QT*CPTL +
-      - Clear_reabsorption_K*CPTL   # ug/d, Proximal tubule lumen    
+      - Clear_net_reabsorption_K*CPTL   # ug/d, Proximal tubule lumen    
     
     dARKT <- QK*(CPTT - CVRKT)                               # ug/d, Rest of kidney
     
@@ -687,7 +699,7 @@ PBK.model <- function(t, state, pars){
   })
 }
 
-# function to get final TK params to be used in the final PBK model version ????????????
+# Calculate chemical-specific TK parameters for the final PBK model
 Calc_final_params.f <- function(parm.chem, parm.phys){
   with(as.list(c(parm.chem, parm.phys)), {
     # Toxicokinetic ----
@@ -792,7 +804,7 @@ Calc_final_params.f <- function(parm.chem, parm.phys){
     # intestine
     Papp_SI <- Papp_SI                     # cm/s
     
-    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I#*VI_L        # L/d, active uptake, it is assume0d that the fraction unbound is 1 
+    Clear_OATP2B1_I <- Clear_OATP2B1c*SF_OATP2B1_I#*VI_L        # L/d, active uptake, fraction unbound is assumed to be 1 
     
     # liver 
     Clear_OATP1B1 <- Clear_OATP1B1c*SF_OATP1B1   #*VL_ic*fu_L_ec   # L/d
