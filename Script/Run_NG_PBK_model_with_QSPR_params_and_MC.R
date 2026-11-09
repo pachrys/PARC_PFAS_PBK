@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Script for running the NG-PBK model in a probabilistic manner, having a range of values for the most sensitive QSPR-predicted parameters
+# Script for running the NG-PBK model to calculate uncertainty using latin hypercube sampling, having a range of values for the most sensitive QSPR-predicted parameters
 # Chrysanthi Pachoulide, August 2026
 # --------------------------------------------------------------------------- #
 
